@@ -1,5 +1,4 @@
 import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
@@ -209,7 +208,6 @@ export default function TermsOfServicePage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   )
 }
