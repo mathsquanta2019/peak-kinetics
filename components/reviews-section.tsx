@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ReviewModal } from "./review-modal"
 import { ReviewDetailModal } from "./review-detail-modal"
 import { API_ENDPOINTS } from "@/lib/api-config"
+import Link from "next/link"
 
 export interface Review {
   id: string
@@ -134,7 +134,6 @@ const fetchReviewsFromBackend = async (): Promise<Review[]> => {
 
 export function ReviewsSection() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
   const [reviews, setReviews] = useState<Review[]>(mockReviews)
   const [isPaused, setIsPaused] = useState(false)
@@ -181,13 +180,6 @@ export function ReviewsSection() {
     return () => clearInterval(pollInterval)
   }, [])
 
-  const handleAddReview = (newReview: Omit<Review, "id" | "date">) => {
-    fetchReviewsFromBackend().then((freshReviews) => {
-      setReviews(freshReviews)
-      setIsReviewModalOpen(false)
-    })
-  }
-
   return (
     <section className="py-24 bg-background">
       <div className="container mx-auto px-4">
@@ -200,10 +192,12 @@ export function ReviewsSection() {
               Scroll through thousands of real stories from patients who've transformed their lives with PeakKinetics.
             </p>
           </div>
-          <Button onClick={() => setIsReviewModalOpen(true)} className="flex-shrink-0 gap-2 h-12 px-6">
-            <span>+</span>
-            Leave a Review
-          </Button>
+          <Link href="/review">
+            <Button className="flex-shrink-0 gap-2 h-12 px-6">
+              <span>+</span>
+              Leave a Review
+            </Button>
+          </Link>
         </div>
 
         <div className="relative group">
@@ -295,7 +289,6 @@ export function ReviewsSection() {
       </div>
 
       {/* Modals */}
-      <ReviewModal isOpen={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} onSubmit={handleAddReview} />
       {selectedReview && <ReviewDetailModal review={selectedReview} onClose={() => setSelectedReview(null)} />}
     </section>
   )
