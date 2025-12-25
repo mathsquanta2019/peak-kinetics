@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',   // 👈 THIS is missing
+
+  trailingSlash: true,
+
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -9,12 +13,8 @@ const nextConfig = {
   },
 
   images: {
-    unoptimized: true,
+    unoptimized: true, // required for static export
   },
-
-  // basePath: '/app',
-
-  trailingSlash: true,
 }
 
 export default nextConfig
