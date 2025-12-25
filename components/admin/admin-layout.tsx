@@ -42,10 +42,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     if (!adminAuth.isAuthenticated()) {
-      router.push("/admin/login")
-    } else {
-      setUser(adminAuth.getUser())
+      router.replace("/admin/login")
+      return
     }
+    setUser(adminAuth.getUser())
   }, [router])
 
   useEffect(() => {
@@ -57,7 +57,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = () => {
     adminAuth.logout()
-    router.push("/admin/login")
+    setUser(null)
+    router.replace("/admin/login")
   }
 
   const navItems = [

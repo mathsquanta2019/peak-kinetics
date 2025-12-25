@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,12 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    if (adminAuth.isAuthenticated()) {
+      router.replace("/admin/dashboard")
+    }
+  }, [router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -25,12 +31,20 @@ export default function AdminLoginPage() {
     const user = await adminAuth.login(email, password)
 
     if (user) {
-      router.push("/admin/dashboard")
+      router.replace("/admin/dashboard")
     } else {
       setError("Invalid credentials. Please try again.")
     }
 
     setLoading(false)
+  }
+
+  if (adminAuth.isAuthenticated()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
+      </div>
+    )
   }
 
   return (

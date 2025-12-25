@@ -25,8 +25,10 @@ export const adminAuth = {
           role: admin.role,
           lastLogin: admin.lastLogin,
         }
-        localStorage.setItem("admin_token", `dev-token-${admin.id}`)
-        localStorage.setItem("admin_user", JSON.stringify(user))
+        if (typeof window !== "undefined") {
+          localStorage.setItem("admin_token", `dev-token-${admin.id}`)
+          localStorage.setItem("admin_user", JSON.stringify(user))
+        }
         // Update last login for next time
         mockDB.admins.updateLastLogin(admin.id)
         return user
@@ -58,8 +60,10 @@ export const adminAuth = {
   },
 
   logout: () => {
-    localStorage.removeItem("admin_token")
-    localStorage.removeItem("admin_user")
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("admin_token")
+      localStorage.removeItem("admin_user")
+    }
   },
 
   getToken: (): string | null => {
@@ -70,7 +74,7 @@ export const adminAuth = {
   getUser: (): AdminUser | null => {
     if (typeof window === "undefined") return null
     const userStr = localStorage.getItem("admin_user")
-    return userStr ? JSON.parse(userStr) : null
+    return userStr ? JSON.stringify(userStr) : null
   },
 
   isAuthenticated: (): boolean => {
