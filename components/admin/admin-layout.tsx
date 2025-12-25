@@ -11,17 +11,47 @@ interface AdminLayoutProps {
   children: ReactNode
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return "Good morning"
+  if (hour < 18) return "Good afternoon"
+  return "Good evening"
+}
+
+function formatLastLogin(lastLogin?: string): string {
+  if (!lastLogin) return "First login"
+  const date = new Date(lastLogin)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`
+  return date.toLocaleDateString()
+}
+
 export function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState(adminAuth.getUser())
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [greeting, setGreeting] = useState(getGreeting())
 
   useEffect(() => {
     if (!adminAuth.isAuthenticated()) {
       router.push("/admin/login")
     }
   }, [router])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGreeting(getGreeting())
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleLogout = () => {
     adminAuth.logout()
@@ -85,9 +115,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{user?.name || "Admin"}</p>
-                <p className="text-xs text-gray-500 truncate">{user?.email || ""}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.role || "Administrator"}</p>
               </div>
             </div>
+            {user?.lastLogin && (
+              <p className="text-xs text-gray-500 px-4 mb-3">Last login: {formatLastLogin(user.lastLogin)}</p>
+            )}
             <Button
               onClick={handleLogout}
               variant="ghost"
@@ -110,7 +143,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Button>
             <div className="flex-1 lg:flex-none">
               <h1 className="text-xl font-semibold text-gray-900">
-                {navItems.find((item) => item.href === pathname)?.label || "Dashboard"}
+                {greeting}, {user?.name?.split(" ")[0] || "Admin"}!
               </h1>
             </div>
           </div>

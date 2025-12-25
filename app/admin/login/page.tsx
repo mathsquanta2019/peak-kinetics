@@ -96,6 +96,15 @@ export default function AdminLoginPage() {
             </Button>
           </form>
 
+          {process.env.NEXT_PUBLIC_DEV_MODE === "true" && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs font-semibold text-blue-900 mb-2">Dev Mode - Test Credentials:</p>
+              <p className="text-xs text-blue-800">admin@peakkinetics.com / admin123</p>
+              <p className="text-xs text-blue-800">john@peakkinetics.com / john123</p>
+              <p className="text-xs text-blue-800">emily@peakkinetics.com / emily123</p>
+            </div>
+          )}
+
           <p className="mt-6 text-center text-sm text-gray-500">
             Forgot your password? Contact your system administrator.
           </p>

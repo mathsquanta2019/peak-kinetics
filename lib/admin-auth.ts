@@ -1,32 +1,34 @@
 "use client"
 
 import { API_ENDPOINTS } from "./api-config"
+import { mockDB } from "./mock-data/mock-db"
 
 export interface AdminUser {
   id: string
   email: string
   name: string
+  role: string
+  lastLogin?: string
 }
 
 const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true"
 
-// Development credentials for testing (remove in production)
-const DEV_CREDENTIALS = {
-  email: "admin@peakkinetics.com",
-  password: "admin123",
-}
-
 export const adminAuth = {
   login: async (email: string, password: string): Promise<AdminUser | null> => {
     if (DEV_MODE) {
-      if (email === DEV_CREDENTIALS.email && password === DEV_CREDENTIALS.password) {
+      const admin = mockDB.admins.authenticate(email, password)
+      if (admin) {
         const user: AdminUser = {
-          id: "dev-admin-1",
-          email: email,
-          name: "Admin User",
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          role: admin.role,
+          lastLogin: admin.lastLogin,
         }
-        localStorage.setItem("admin_token", "dev-token-123")
+        localStorage.setItem("admin_token", `dev-token-${admin.id}`)
         localStorage.setItem("admin_user", JSON.stringify(user))
+        // Update last login for next time
+        mockDB.admins.updateLastLogin(admin.id)
         return user
       }
       return null
