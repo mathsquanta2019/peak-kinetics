@@ -18,7 +18,7 @@ import {
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { adminAuth } from "@/lib/admin-auth"
 import { mockDB } from "@/lib/mock-data/mock-db"
-import { Upload, Send, FileText, Mail, ArrowUpDown } from "lucide-react"
+import { Upload, Send, FileText, ArrowUpDown } from "lucide-react"
 import { useState, useEffect } from "react"
 import {
   useReactTable,
@@ -43,7 +43,7 @@ interface Review {
 }
 
 export default function AdminReviewsPage() {
-  const [activeTab, setActiveTab] = useState<"view" | "send" | "import">("view")
+  const [activeTab, setActiveTab] = useState<"view" | "import">("view")
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
@@ -60,7 +60,6 @@ export default function AdminReviewsPage() {
   )
   const [sendLoading, setSendLoading] = useState(false)
 
-  // CSV import state
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
 
@@ -391,7 +390,7 @@ export default function AdminReviewsPage() {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between px-6 py-4 border-t">
+              <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
                 <div className="text-sm text-gray-700">
                   Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
                   {Math.min(
@@ -537,7 +536,6 @@ export default function AdminReviewsPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={sendLoading} className="bg-sky-600 hover:bg-sky-700">
-                <Mail className="h-4 w-4 mr-2" />
                 {sendLoading ? "Sending..." : "Send Request"}
               </Button>
             </DialogFooter>
