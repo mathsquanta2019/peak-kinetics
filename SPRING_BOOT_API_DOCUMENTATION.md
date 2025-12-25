@@ -915,32 +915,424 @@ NEXT_PUBLIC_DEV_MODE=false
 
 ---
 
-## 10. Deployment Checklist
+## 10. Deployment & Bundling Architecture
 
-### Backend (Spring Boot)
-- [ ] Configure CORS to allow frontend domain
-- [ ] Set up JWT secret key (store in environment variables)
-- [ ] Configure database connection
-- [ ] Set up file storage for images (S3, local storage, etc.)
-- [ ] Implement email service for review requests
-- [ ] Implement SMS service (optional) for review requests
-- [ ] Set up logging and monitoring
-- [ ] Configure HTTPS/SSL certificates
-- [ ] Set up rate limiting
-- [ ] Configure session management
+### Overview
 
-### Frontend (Next.js)
-- [ ] Set `NEXT_PUBLIC_API_BASE_URL` to production backend URL
-- [ ] Set `NEXT_PUBLIC_DEV_MODE=false`
-- [ ] Build static files: `npm run build`
-- [ ] Export static site: `next export` (if using static export)
-- [ ] Copy `out/` directory to Spring Boot's `src/main/resources/static`
+This Next.js application is designed to be **bundled with a Spring Boot backend** as a unified deployment. The architecture works as follows:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Spring Boot Application               │
+│                                                         │
+│  ┌────────────────────┐      ┌────────────────────┐  │
+│  │   Static Frontend  │      │   REST API Backend │  │
+│  │   (Next.js Build)  │◄────►│   (Spring MVC)     │  │
+│  │                    │      │                    │  │
+│  │  /index.html       │      │  /api/**           │  │
+│  │  /assets/**        │      │                    │  │
+│  │  /_next/**         │      │                    │  │
+│  └────────────────────┘      └────────────────────┘  │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### How It Works
+
+1. **Frontend Build Process:**
+   - Next.js builds the application into static files
+   - All JavaScript, CSS, images, and HTML are generated in the `.next` directory
+   - The build is optimized for production with code splitting and minification
+
+2. **Spring Boot Integration:**
+   - Spring Boot serves the Next.js static files from its `resources/static` directory
+   - Spring Boot handles all API requests at `/api/**` endpoints
+   - All other routes are handled by Next.js (client-side routing)
+
+3. **Routing Strategy:**
+   ```
+   Request Pattern                Spring Boot Action
+   ─────────────────────────────────────────────────────
+   /                              → Serve index.html (Next.js)
+   /about, /services, etc.        → Serve index.html (client routing)
+   /admin/dashboard               → Serve index.html (client routing)
+   /api/reviews                   → Handle with REST Controller
+   /api/admin/auth/login          → Handle with REST Controller
+   /_next/static/**               → Serve static assets
+   /images/**                     → Serve static assets
+   ```
+
+### Deployment Steps
+
+#### Step 1: Build the Next.js Frontend
+
+```bash
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+
+# This creates an optimized production build in the .next directory
+# and exports static files to the 'out' directory
+```
+
+#### Step 2: Copy Build to Spring Boot
+
+After building, copy the Next.js output to your Spring Boot project:
+
+```bash
+# Copy the entire Next.js build output
+cp -r .next/static ./spring-boot-app/src/main/resources/static/_next/static/
+cp -r public/* ./spring-boot-app/src/main/resources/static/
+cp -r out/* ./spring-boot-app/src/main/resources/static/
+
+# Or use the provided script (create this in your project)
+./deploy-to-spring-boot.sh
+```
+
+**Deployment Script (deploy-to-spring-boot.sh):**
+```bash
+#!/bin/bash
+
+# Build Next.js
+echo "Building Next.js application..."
+npm run build
+
+# Define Spring Boot static resources path
+SPRING_STATIC="./spring-boot-app/src/main/resources/static"
+
+# Clear previous build
+echo "Cleaning previous build..."
+rm -rf $SPRING_STATIC/*
+
+# Copy static assets
+echo "Copying static assets..."
+cp -r public/* $SPRING_STATIC/
+cp -r .next/static $SPRING_STATIC/_next/
+
+# Copy HTML files
+echo "Copying HTML files..."
+find .next/server/pages -name "*.html" -exec cp {} $SPRING_STATIC/ \;
+
+echo "Deployment to Spring Boot complete!"
+```
+
+#### Step 3: Configure Spring Boot
+
+**Application Configuration (application.yml):**
+```yaml
+spring:
+  web:
+    resources:
+      static-locations: classpath:/static/
+  mvc:
+    static-path-pattern: /**
+
+server:
+  port: 8080
+  
+# CORS Configuration
+cors:
+  allowed-origins: 
+    - http://localhost:3000  # Development
+    - https://peakkinetics.com  # Production
+  allowed-methods: GET,POST,PUT,DELETE,PATCH
+  allowed-headers: "*"
+  allow-credentials: true
+```
+
+**WebMvcConfigurer (Java Configuration):**
+```java
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // Serve Next.js static files
+        registry.addResourceHandler("/_next/**")
+                .addResourceLocations("classpath:/static/_next/");
+        
+        registry.addResourceHandler("/images/**")
+                .addResourceLocations("classpath:/static/images/");
+        
+        registry.addResourceHandler("/**")
+                .addResourceLocations("classpath:/static/");
+    }
+    
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOrigins("http://localhost:3000", "https://peakkinetics.com")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH")
+                .allowedHeaders("*")
+                .allowCredentials(true);
+    }
+}
+```
+
+**Controller for Frontend Routing:**
+```java
+@Controller
+public class FrontendController {
+    
+    // Forward all non-API routes to index.html for Next.js client-side routing
+    @GetMapping(value = {"/{path:[^\\.]*}", "/**/{path:[^\\.]*}"})
+    public String forward(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        
+        // Don't forward API requests
+        if (path.startsWith("/api/")) {
+            return null;
+        }
+        
+        // Don't forward static resources
+        if (path.startsWith("/_next/") || 
+            path.startsWith("/images/") || 
+            path.contains(".")) {
+            return null;
+        }
+        
+        // Forward to index.html for client-side routing
+        return "forward:/index.html";
+    }
+}
+```
+
+#### Step 4: Build Spring Boot Application
+
+```bash
+cd spring-boot-app
+
+# Build with Maven
+./mvnw clean package
+
+# Or with Gradle
+./gradlew build
+
+# The resulting JAR will contain both frontend and backend
+# Located at: target/peak-kinetics-0.0.1-SNAPSHOT.jar
+```
+
+#### Step 5: Run the Application
+
+```bash
+# Run the Spring Boot JAR
+java -jar target/peak-kinetics-0.0.1-SNAPSHOT.jar
+
+# Application will be available at:
+# - Frontend: http://localhost:8080
+# - API: http://localhost:8080/api
+```
+
+### Environment Variables
+
+**For Development (Next.js only):**
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+NEXT_PUBLIC_DEV_MODE=true
+```
+
+**For Production (Bundled with Spring Boot):**
+```env
+NEXT_PUBLIC_API_BASE_URL=/api
+NEXT_PUBLIC_DEV_MODE=false
+```
+
+Note: When bundled, the API base URL can be relative (`/api`) since both frontend and backend are served from the same domain.
+
+### Production Deployment Options
+
+#### Option 1: Single JAR Deployment
+```bash
+# Build the fat JAR with embedded Tomcat
+./mvnw clean package
+
+# Deploy to server
+scp target/peak-kinetics.jar user@server:/opt/apps/
+
+# Run on server
+ssh user@server
+cd /opt/apps
+java -jar peak-kinetics.jar
+```
+
+#### Option 2: Docker Container
+```dockerfile
+# Dockerfile
+FROM openjdk:17-slim
+
+WORKDIR /app
+
+# Copy the Spring Boot JAR (which includes Next.js build)
+COPY target/peak-kinetics-0.0.1-SNAPSHOT.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+```bash
+# Build Docker image
+docker build -t peak-kinetics:latest .
+
+# Run container
+docker run -p 8080:8080 peak-kinetics:latest
+```
+
+#### Option 3: Cloud Deployment (AWS, Azure, GCP)
+The bundled JAR can be deployed to:
+- AWS Elastic Beanstalk
+- Azure App Service
+- Google Cloud Run
+- Heroku
+- Any VM or container service
+
+### Benefits of Bundling
+
+1. **Single Deployment Unit:** One JAR file contains everything
+2. **No CORS Issues:** Frontend and backend on same origin
+3. **Simplified DevOps:** One application to deploy and monitor
+4. **Performance:** Direct communication without network overhead
+5. **Cost-Effective:** Single server/container instead of multiple
+6. **Easy Rollback:** Single artifact to version and revert
+
+### Development Workflow
+
+For development, you can run them separately:
+
+**Terminal 1 - Next.js Dev Server:**
+```bash
+npm run dev
+# Runs on http://localhost:3000
+# Uses NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+```
+
+**Terminal 2 - Spring Boot:**
+```bash
+cd spring-boot-app
+./mvnw spring-boot:run
+# Runs on http://localhost:8080
+# Serves API at /api/**
+```
+
+For production, bundle them together as described above.
 
 ---
 
-## Support
+## 11. API Response Caching
 
-For questions or issues with API integration, please contact the development team or refer to the main project README.
+Consider implementing caching for frequently accessed endpoints:
 
-**Last Updated:** January 2024
-**API Version:** 1.0.0
+**Spring Boot Caching Configuration:**
+```java
+@Configuration
+@EnableCaching
+public class CacheConfig {
+    
+    @Bean
+    public CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager("reviews", "blogPosts");
+    }
+}
+```
+
+**Using Cache in Controllers:**
+```java
+@GetMapping("/reviews")
+@Cacheable("reviews")
+public ResponseEntity<List<Review>> getReviews() {
+    // This response will be cached
+    return ResponseEntity.ok(reviewService.getAllReviews());
+}
+
+@PostMapping("/reviews")
+@CacheEvict(value = "reviews", allEntries = true)
+public ResponseEntity<Review> createReview(@RequestBody Review review) {
+    // This will clear the cache
+    return ResponseEntity.ok(reviewService.create(review));
+}
+```
+
+---
+
+## 12. Monitoring & Logging
+
+### Recommended Logging Configuration
+
+**logback-spring.xml:**
+```xml
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <logger name="com.peakkinetics.api" level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+```
+
+### Request Logging Interceptor
+
+```java
+@Component
+public class RequestLoggingInterceptor implements HandlerInterceptor {
+    
+    private static final Logger logger = LoggerFactory.getLogger(RequestLoggingInterceptor.class);
+    
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        logger.info("[{}] {} - {}", request.getMethod(), request.getRequestURI(), request.getRemoteAddr());
+        return true;
+    }
+}
+```
+
+---
+
+## 13. Health Check Endpoint
+
+Implement a health check for monitoring:
+
+```java
+@RestController
+@RequestMapping("/api/health")
+public class HealthController {
+    
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> health() {
+        Map<String, Object> health = new HashMap<>();
+        health.put("status", "UP");
+        health.put("timestamp", Instant.now());
+        health.put("service", "Peak Kinetics API");
+        health.put("version", "1.0.0");
+        
+        return ResponseEntity.ok(health);
+    }
+}
+```
+
+**Frontend can check:**
+```typescript
+const checkBackendHealth = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    const data = await response.json();
+    console.log('Backend status:', data.status);
+  } catch (error) {
+    console.error('Backend is down');
+  }
+};
+```
+
+---
+
+## Summary
+
+This API documentation provides all the endpoints needed to integrate the Peak Kinetics Next.js frontend with your Spring Boot backend. The bundled architecture allows you to deploy both as a single application, simplifying deployment and improving performance. Follow the deployment steps above to create a production-ready JAR file that serves both the frontend and API from a single server.
