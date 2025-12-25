@@ -54,6 +54,7 @@ export function Header() {
     { href: "#home", label: "Home" },
     { href: "#services", label: "Services", hasDropdown: true },
     { href: "#about", label: "About" },
+    { href: "/blog", label: "Blog" },
     { href: "#contact", label: "Contact" },
   ]
 

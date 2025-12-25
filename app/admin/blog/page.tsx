@@ -1,0 +1,216 @@
+"use client"
+
+import { AdminLayout } from "@/components/admin/admin-layout"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { API_ENDPOINTS } from "@/lib/api-config"
+import { adminAuth } from "@/lib/admin-auth"
+import { useState, useEffect } from "react"
+import { Plus, Edit2, Trash2, Eye, Calendar, Search } from "lucide-react"
+import Link from "next/link"
+import Image from "next/image"
+import { Input } from "@/components/ui/input"
+
+interface BlogPost {
+  id: string
+  title: string
+  slug: string
+  excerpt: string
+  content: string
+  featuredImage?: string
+  author: string
+  publishedAt: string
+  status: "published" | "draft"
+  tags: string[]
+}
+
+export default function AdminBlogPage() {
+  const [posts, setPosts] = useState<BlogPost[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
+
+  useEffect(() => {
+    fetchPosts()
+  }, [])
+
+  const fetchPosts = async () => {
+    try {
+      const token = adminAuth.getToken()
+      const response = await fetch(API_ENDPOINTS.blog.list, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setPosts(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch posts:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification(null), 5000)
+  }
+
+  const deletePost = async (postId: string) => {
+    if (!confirm("Are you sure you want to delete this blog post?")) return
+
+    try {
+      const token = adminAuth.getToken()
+      const response = await fetch(`${API_ENDPOINTS.blog.delete}/${postId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        setPosts(posts.filter((post) => post.id !== postId))
+        showNotification("success", "Blog post deleted successfully")
+      } else {
+        showNotification("error", "Failed to delete blog post")
+      }
+    } catch (error) {
+      showNotification("error", "An error occurred")
+    }
+  }
+
+  const filteredPosts = posts.filter(
+    (post) =>
+      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())),
+  )
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        {/* Notification */}
+        {notification && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 rounded-lg border-2 px-6 py-4 shadow-lg ${
+              notification.type === "success"
+                ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                : "border-red-500 bg-red-50 text-red-800"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`h-2 w-2 rounded-full ${notification.type === "success" ? "bg-emerald-500" : "bg-red-500"}`}
+              />
+              <span className="font-medium">{notification.message}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Blog Posts</h2>
+            <p className="text-gray-600">{posts.length} total posts</p>
+          </div>
+          <Link href="/admin/blog/new">
+            <Button className="bg-sky-600 hover:bg-sky-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Post
+            </Button>
+          </Link>
+        </div>
+
+        <Card className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search posts by title, content, or tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </Card>
+
+        {loading ? (
+          <Card className="p-12 text-center text-gray-500">Loading posts...</Card>
+        ) : filteredPosts.length === 0 ? (
+          <Card className="p-12 text-center">
+            <p className="text-gray-500 mb-4">No blog posts found</p>
+            <Link href="/admin/blog/new">
+              <Button className="bg-sky-600 hover:bg-sky-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Post
+              </Button>
+            </Link>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredPosts.map((post) => (
+              <Card key={post.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="flex flex-col h-full">
+                  {post.featuredImage && (
+                    <div className="relative h-48 bg-gray-100">
+                      <Image
+                        src={post.featuredImage || "/placeholder.svg"}
+                        alt={post.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
+                    </div>
+                  )}
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge className={post.status === "published" ? "bg-green-600" : "bg-gray-600"}>
+                        {post.status}
+                      </Badge>
+                      {post.tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{post.title}</h3>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-1">{post.excerpt}</p>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/blog/${post.slug}`} target="_blank">
+                          <Button size="sm" variant="ghost">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Link href={`/admin/blog/edit/${post.id}`}>
+                          <Button size="sm" variant="ghost">
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Button size="sm" variant="ghost" onClick={() => deletePost(post.id)}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  )
+}
