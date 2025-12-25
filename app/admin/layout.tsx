@@ -7,7 +7,9 @@ import { AdminLayout } from "@/components/admin/admin-layout"
 export default function AdminLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  if (pathname === "/admin/login" || pathname === "/admin") {
+  const publicRoutes = ["/admin", "/admin/login", "/admin/register", "/admin/forgot-password", "/admin/reset-password"]
+
+  if (publicRoutes.includes(pathname)) {
     return <>{children}</>
   }
 
