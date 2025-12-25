@@ -21,6 +21,8 @@ interface RegisterData {
 
 const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true"
 
+console.log("[v0] DEV_MODE:", DEV_MODE, "env value:", process.env.NEXT_PUBLIC_DEV_MODE)
+
 export const adminAuth = {
   login: async (email: string, password: string): Promise<AdminUser | null> => {
     if (DEV_MODE) {
@@ -69,8 +71,12 @@ export const adminAuth = {
 
   // Adding register functionality
   register: async (data: RegisterData): Promise<boolean> => {
+    console.log("[v0] Register called, DEV_MODE:", DEV_MODE)
+
     if (DEV_MODE) {
-      return mockDB.admins.register(data)
+      const result = mockDB.admins.register(data)
+      console.log("[v0] Register result:", result)
+      return result
     }
 
     try {
@@ -89,9 +95,12 @@ export const adminAuth = {
 
   // Adding forgot password functionality
   requestPasswordReset: async (email: string): Promise<boolean> => {
+    console.log("[v0] requestPasswordReset called, DEV_MODE:", DEV_MODE, "email:", email)
+
     if (DEV_MODE) {
       // In dev mode, just simulate success
       const admin = mockDB.admins.findByEmail(email)
+      console.log("[v0] Found admin:", !!admin)
       return !!admin
     }
 
