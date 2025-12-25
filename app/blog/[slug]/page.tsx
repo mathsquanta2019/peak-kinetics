@@ -91,7 +91,6 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
       <Header />
       <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-24 pb-16">
         <article className="container mx-auto px-4 max-w-4xl">
-          {/* Back Button */}
           <Link href="/blog">
             <Button variant="ghost" className="mb-8">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -99,7 +98,6 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             </Button>
           </Link>
 
-          {/* Featured Image */}
           {post.featuredImage && (
             <div className="relative h-96 rounded-2xl overflow-hidden mb-8">
               <Image
@@ -113,7 +111,6 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             </div>
           )}
 
-          {/* Tags */}
           <div className="flex flex-wrap gap-2 mb-6">
             {post.tags.map((tag) => (
               <Badge key={tag} className="bg-sky-100 text-sky-700 hover:bg-sky-200">
@@ -122,10 +119,8 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             ))}
           </div>
 
-          {/* Title */}
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">{post.title}</h1>
 
-          {/* Meta */}
           <div className="flex items-center justify-between pb-8 mb-8 border-b border-gray-200">
             <div className="flex items-center gap-6 text-gray-600">
               <div className="flex items-center gap-2">
@@ -150,12 +145,10 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             </Button>
           </div>
 
-          {/* Content */}
           <div className="prose prose-lg max-w-none">
             <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">{post.content}</div>
           </div>
 
-          {/* CTA */}
           <div className="mt-16 p-8 bg-sky-50 rounded-2xl border border-sky-100">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Ready to Start Your Recovery Journey?</h3>
             <p className="text-gray-700 mb-6">
