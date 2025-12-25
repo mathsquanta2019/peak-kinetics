@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -120,7 +120,16 @@ export default function AdminLoginPage() {
           )}
 
           <p className="mt-6 text-center text-sm text-gray-500">
-            Forgot your password? Contact your system administrator.
+            <Link href="/admin/forgot-password" className="text-sky-600 hover:text-sky-700 font-medium">
+              Forgot your password?
+            </Link>
+          </p>
+
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Don't have an account?{" "}
+            <Link href="/admin/register" className="text-sky-600 hover:text-sky-700 font-medium">
+              Register here
+            </Link>
           </p>
         </div>
       </div>

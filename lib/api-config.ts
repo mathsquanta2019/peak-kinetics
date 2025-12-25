@@ -22,5 +22,8 @@ export const API_ENDPOINTS = {
     login: `${API_BASE_URL}/admin/auth/login`,
     logout: `${API_BASE_URL}/admin/auth/logout`,
     verify: `${API_BASE_URL}/admin/auth/verify`,
+    register: `${API_BASE_URL}/admin/auth/register`,
+    forgotPassword: `${API_BASE_URL}/admin/auth/forgot-password`,
+    resetPassword: `${API_BASE_URL}/admin/auth/reset-password`,
   },
 } as const

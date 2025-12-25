@@ -9,6 +9,9 @@ export interface Admin {
   name: string
   password: string
   role: string
+  title?: string
+  firstName?: string
+  lastName?: string
   lastLogin?: string
 }
 
@@ -36,6 +39,9 @@ const mockAdmins: Admin[] = [
     password: "admin123",
     name: "Dr. Sarah Johnson",
     role: "Administrator",
+    title: "Dr.",
+    firstName: "Sarah",
+    lastName: "Johnson",
     lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
   },
   {
@@ -44,6 +50,9 @@ const mockAdmins: Admin[] = [
     password: "john123",
     name: "John Martinez",
     role: "Physical Therapist",
+    title: "",
+    firstName: "John",
+    lastName: "Martinez",
     lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
   },
   {
@@ -52,6 +61,9 @@ const mockAdmins: Admin[] = [
     password: "emily123",
     name: "Emily Chen",
     role: "Practice Manager",
+    title: "",
+    firstName: "Emily",
+    lastName: "Chen",
     lastLogin: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
   },
 ]
@@ -201,6 +213,33 @@ export const mockDB = {
       if (admin) {
         admin.lastLogin = new Date().toISOString()
       }
+    },
+    register: (data: {
+      title: string
+      firstName: string
+      lastName: string
+      email: string
+      password: string
+    }): boolean => {
+      // Check if email already exists
+      if (mockAdmins.find((a) => a.email === data.email)) {
+        return false
+      }
+
+      const newAdmin: Admin = {
+        id: `admin-${Date.now()}`,
+        email: data.email,
+        password: data.password,
+        name: `${data.title} ${data.firstName} ${data.lastName}`,
+        title: data.title,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: "Administrator",
+        lastLogin: undefined,
+      }
+
+      mockAdmins.push(newAdmin)
+      return true
     },
   },
 

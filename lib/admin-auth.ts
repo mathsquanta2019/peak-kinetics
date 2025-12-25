@@ -11,6 +11,14 @@ export interface AdminUser {
   lastLogin?: string
 }
 
+interface RegisterData {
+  title: string
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+}
+
 const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true"
 
 export const adminAuth = {
@@ -59,6 +67,69 @@ export const adminAuth = {
     }
   },
 
+  // Adding register functionality
+  register: async (data: RegisterData): Promise<boolean> => {
+    if (DEV_MODE) {
+      return mockDB.admins.register(data)
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.register, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+
+      return response.ok
+    } catch (error) {
+      console.error("Registration error:", error)
+      return false
+    }
+  },
+
+  // Adding forgot password functionality
+  requestPasswordReset: async (email: string): Promise<boolean> => {
+    if (DEV_MODE) {
+      // In dev mode, just simulate success
+      const admin = mockDB.admins.findByEmail(email)
+      return !!admin
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.forgotPassword, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+
+      return response.ok
+    } catch (error) {
+      console.error("Password reset request error:", error)
+      return false
+    }
+  },
+
+  // Adding reset password functionality
+  resetPassword: async (token: string, newPassword: string): Promise<boolean> => {
+    if (DEV_MODE) {
+      // In dev mode, just simulate success
+      return true
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.resetPassword, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, newPassword }),
+      })
+
+      return response.ok
+    } catch (error) {
+      console.error("Password reset error:", error)
+      return false
+    }
+  },
+
   logout: () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("admin_token")
@@ -74,7 +145,7 @@ export const adminAuth = {
   getUser: (): AdminUser | null => {
     if (typeof window === "undefined") return null
     const userStr = localStorage.getItem("admin_user")
-    return userStr ? JSON.stringify(userStr) : null
+    return userStr ? JSON.parse(userStr) : null
   },
 
   isAuthenticated: (): boolean => {

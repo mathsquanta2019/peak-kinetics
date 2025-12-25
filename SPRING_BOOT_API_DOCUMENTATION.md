@@ -52,7 +52,129 @@ Authorization: Bearer {token}  // For protected routes
 }
 ```
 
-### 1.2 Admin Logout
+### 1.2 Admin Registration
+**Endpoint:** `POST /admin/auth/register`
+
+**Description:** Registers a new admin user.
+
+**Request Body:**
+```json
+{
+  "title": "Dr.",
+  "firstName": "John",
+  "lastName": "Smith",
+  "email": "john.smith@peakkinetics.com",
+  "password": "SecurePass123!@#"
+}
+```
+
+**Password Requirements:**
+- Minimum 8 characters
+- At least 1 uppercase letter
+- At least 1 lowercase letter
+- At least 1 number
+- At least 1 special character
+- Must meet at least 4 out of 5 requirements
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Account created successfully",
+  "user": {
+    "id": "admin-123",
+    "email": "john.smith@peakkinetics.com",
+    "name": "Dr. John Smith"
+  }
+}
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Email already exists"
+}
+```
+
+**Response (422 Unprocessable Entity):**
+```json
+{
+  "success": false,
+  "error": "Password does not meet security requirements"
+}
+```
+
+### 1.3 Forgot Password
+**Endpoint:** `POST /admin/auth/forgot-password`
+
+**Description:** Sends a password reset link to the admin's email.
+
+**Request Body:**
+```json
+{
+  "email": "admin@peakkinetics.com"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Password reset instructions sent to your email"
+}
+```
+
+**Implementation Notes:**
+- Generate a secure token (UUID or JWT with 1-hour expiration)
+- Store token in database with user ID and expiration timestamp
+- Send email with reset link: `https://peakkinetics.com/admin/reset-password?token={token}`
+- Return success even if email doesn't exist (security best practice)
+
+**Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Invalid email format"
+}
+```
+
+### 1.4 Reset Password
+**Endpoint:** `POST /admin/auth/reset-password`
+
+**Description:** Resets the admin's password using a valid reset token.
+
+**Request Body:**
+```json
+{
+  "token": "abc123-reset-token-xyz789",
+  "newPassword": "NewSecurePass123!@#"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Password reset successfully"
+}
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Invalid or expired reset token"
+}
+```
+
+**Implementation Notes:**
+- Verify token exists and hasn't expired
+- Hash new password with BCrypt (cost factor 10-12)
+- Invalidate the reset token after use
+- Optionally send confirmation email
+
+### 1.5 Admin Logout
 **Endpoint:** `POST /admin/auth/logout`
 
 **Description:** Invalidates the admin's session token.
@@ -67,7 +189,7 @@ Authorization: Bearer {token}  // For protected routes
 }
 ```
 
-### 1.3 Verify Token
+### 1.6 Verify Token
 **Endpoint:** `GET /admin/auth/verify`
 
 **Description:** Verifies if the current token is valid.
