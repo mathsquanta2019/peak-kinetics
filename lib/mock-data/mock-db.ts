@@ -2,7 +2,6 @@
 // This simulates a real backend database with in-memory storage
 
 import type { Review } from "./reviews"
-import type { ContactMessage } from "./messages"
 
 export interface Admin {
   id: string
@@ -110,7 +109,19 @@ const mockReviewsStorage: Review[] = [
 ]
 
 // Mock Messages Storage
-const mockMessagesStorage: ContactMessage[] = [
+interface Message {
+  id: string
+  firstName?: string
+  lastName?: string
+  email: string
+  phone?: string
+  address?: string
+  message: string
+  createdAt: string
+  read: boolean
+}
+
+const mockMessagesStorage: Message[] = [
   {
     id: "msg-1",
     firstName: "John",
@@ -121,7 +132,7 @@ const mockMessagesStorage: ContactMessage[] = [
     message:
       "I'm interested in scheduling a consultation for lower back pain that I've been experiencing for the past few months. What are your available times next week?",
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    status: "new",
+    read: false,
   },
   {
     id: "msg-2",
@@ -132,7 +143,7 @@ const mockMessagesStorage: ContactMessage[] = [
     address: "456 Oak Ave, Denver, CO",
     message: "Do you accept Blue Cross Blue Shield insurance? I need physical therapy after my recent knee surgery.",
     createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    status: "read",
+    read: true,
   },
   {
     id: "msg-3",
@@ -144,7 +155,7 @@ const mockMessagesStorage: ContactMessage[] = [
     message:
       "I'm a competitive runner and have been dealing with recurring shin splints. Can you help with sports rehabilitation?",
     createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    status: "responded",
+    read: false,
   },
 ]
 
@@ -225,23 +236,23 @@ export const mockDB = {
 
   // Message Methods
   messages: {
-    getAll: (): ContactMessage[] =>
+    getAll: (): Message[] =>
       [...mockMessagesStorage].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    getById: (id: string): ContactMessage | undefined => mockMessagesStorage.find((m) => m.id === id),
-    create: (message: Omit<ContactMessage, "id" | "createdAt" | "status">): ContactMessage => {
-      const newMessage: ContactMessage = {
+    getById: (id: string): Message | undefined => mockMessagesStorage.find((m) => m.id === id),
+    create: (message: Omit<Message, "id" | "createdAt" | "read">): Message => {
+      const newMessage: Message = {
         ...message,
         id: `msg-${Date.now()}`,
         createdAt: new Date().toISOString(),
-        status: "new",
+        read: false,
       }
       mockMessagesStorage.unshift(newMessage)
       return newMessage
     },
-    updateStatus: (id: string, status: ContactMessage["status"]): ContactMessage | null => {
+    markAsRead: (id: string): Message | null => {
       const message = mockMessagesStorage.find((m) => m.id === id)
       if (message) {
-        message.status = status
+        message.read = true
         return message
       }
       return null

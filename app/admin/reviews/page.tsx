@@ -6,10 +6,19 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { adminAuth } from "@/lib/admin-auth"
 import { mockDB } from "@/lib/mock-data/mock-db"
-import { Upload, Send, FileText, Mail, Phone } from "lucide-react"
+import { Upload, Send, FileText, Mail, ArrowUpDown } from "lucide-react"
 import { useState, useEffect } from "react"
 import {
   useReactTable,
@@ -21,6 +30,7 @@ import {
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
+  type RowSelectionState,
 } from "@tanstack/react-table"
 
 interface Review {
@@ -32,25 +42,6 @@ interface Review {
   treatment?: string
 }
 
-interface HealthcareReview {
-  patientAccountNumber: string
-  patientFirstName: string
-  patientLastName: string
-  caseTitle: string
-  caseFacility: string
-  caseTherapist: string
-  caseStatus: string
-  surveySentDate: string
-  response: string
-  clinicNPS: string
-  providerNPS: string
-  likelihoodToReceiveSpecialistCare: string
-  dischargeDate: string
-  surveyCompletionDate: string
-  isInvalid: string
-  comments: string
-}
-
 export default function AdminReviewsPage() {
   const [activeTab, setActiveTab] = useState<"view" | "send" | "import">("view")
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
@@ -58,8 +49,9 @@ export default function AdminReviewsPage() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState("")
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
-  // Send review request state
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [clientName, setClientName] = useState("")
   const [clientEmail, setClientEmail] = useState("")
   const [clientPhone, setClientPhone] = useState("")
@@ -84,13 +76,54 @@ export default function AdminReviewsPage() {
 
   const columns: ColumnDef<Review>[] = [
     {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
       accessorKey: "name",
-      header: "Patient Name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="hover:bg-gray-100 -ml-4"
+          >
+            Patient Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
       cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
     },
     {
       accessorKey: "rating",
-      header: "Rating",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="hover:bg-gray-100 -ml-4"
+          >
+            Rating
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -108,37 +141,22 @@ export default function AdminReviewsPage() {
     },
     {
       accessorKey: "date",
-      header: "Date",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="hover:bg-gray-100 -ml-4"
+          >
+            Date
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
     },
     {
       accessorKey: "treatment",
       header: "Treatment",
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleSendReviewRequest(row.original.name, "email")}
-            className="h-8"
-          >
-            <Mail className="h-3 w-3 mr-1" />
-            Email
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleSendReviewRequest(row.original.name, "phone")}
-            className="h-8"
-          >
-            <Phone className="h-3 w-3 mr-1" />
-            SMS
-          </Button>
-        </div>
-      ),
     },
   ]
 
@@ -152,16 +170,14 @@ export default function AdminReviewsPage() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
       globalFilter,
+      rowSelection,
     },
   })
-
-  const handleSendReviewRequest = async (patientName: string, method: "email" | "phone") => {
-    showNotification("success", `Review request sent to ${patientName} via ${method}`)
-  }
 
   const handleSendRequest = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -170,10 +186,11 @@ export default function AdminReviewsPage() {
     try {
       if (process.env.NEXT_PUBLIC_DEV_MODE !== "false") {
         await new Promise((resolve) => setTimeout(resolve, 1000))
-        showNotification("success", "Review request sent successfully!")
+        showNotification("success", `Review request sent to ${clientName} successfully!`)
         setClientName("")
         setClientEmail("")
         setClientPhone("")
+        setDialogOpen(false)
       } else {
         const token = adminAuth.getToken()
         const response = await fetch(API_ENDPOINTS.reviews.sendRequest, {
@@ -195,6 +212,7 @@ export default function AdminReviewsPage() {
           setClientName("")
           setClientEmail("")
           setClientPhone("")
+          setDialogOpen(false)
         } else {
           showNotification("error", "Failed to send review request")
         }
@@ -216,7 +234,6 @@ export default function AdminReviewsPage() {
     setImportLoading(true)
 
     try {
-      // Parse CSV file
       const text = await csvFile.text()
       const lines = text.split("\n")
       const headers = lines[0].split(",").map((h) => h.trim())
@@ -233,7 +250,7 @@ export default function AdminReviewsPage() {
         const clinicNPS = values[headers.indexOf("Clinic NPS")]?.trim()
 
         if (firstName && lastName && comments) {
-          const newReview = mockDB.reviews.create({
+          mockDB.reviews.create({
             name: `${firstName} ${lastName}`,
             rating: clinicNPS ? Math.min(5, Math.max(1, Math.ceil(Number.parseInt(clinicNPS) / 2))) : 5,
             text: comments,
@@ -280,9 +297,15 @@ export default function AdminReviewsPage() {
           </div>
         )}
 
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Management</h2>
-          <p className="text-gray-600">View reviews, send requests, or import from CSV</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Management</h2>
+            <p className="text-gray-600">Manage reviews and send requests to clients</p>
+          </div>
+          <Button onClick={() => setDialogOpen(true)} className="bg-sky-600 hover:bg-sky-700">
+            <Send className="h-4 w-4 mr-2" />
+            Send Review Request
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -297,19 +320,6 @@ export default function AdminReviewsPage() {
               }`}
             >
               View Reviews
-            </button>
-            <button
-              onClick={() => setActiveTab("send")}
-              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "send"
-                  ? "border-sky-600 text-sky-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Send className="h-4 w-4" />
-                Send Request
-              </div>
             </button>
             <button
               onClick={() => setActiveTab("import")}
@@ -330,12 +340,17 @@ export default function AdminReviewsPage() {
         {activeTab === "view" && (
           <div className="space-y-4">
             <Card className="p-4">
-              <Input
-                placeholder="Search reviews..."
-                value={globalFilter ?? ""}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="max-w-sm"
-              />
+              <div className="flex items-center justify-between gap-4">
+                <Input
+                  placeholder="Search reviews by name, comment..."
+                  value={globalFilter ?? ""}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  className="max-w-sm"
+                />
+                {Object.keys(rowSelection).length > 0 && (
+                  <div className="text-sm text-gray-600">{Object.keys(rowSelection).length} row(s) selected</div>
+                )}
+              </div>
             </Card>
 
             <Card className="p-0 overflow-hidden">
@@ -345,33 +360,33 @@ export default function AdminReviewsPage() {
                     {table.getHeaderGroups().map((headerGroup) => (
                       <tr key={headerGroup.id}>
                         {headerGroup.headers.map((header) => (
-                          <th
-                            key={header.id}
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                          >
-                            {header.isPlaceholder ? null : (
-                              <div
-                                className={header.column.getCanSort() ? "cursor-pointer select-none" : ""}
-                                onClick={header.column.getToggleSortingHandler()}
-                              >
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                              </div>
-                            )}
+                          <th key={header.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500">
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
                           </th>
                         ))}
                       </tr>
                     ))}
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50">
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="px-6 py-4 text-sm text-gray-900">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
+                    {table.getRowModel().rows.length > 0 ? (
+                      table.getRowModel().rows.map((row) => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="px-6 py-4 text-sm text-gray-900">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">
+                          No reviews found
+                        </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -385,7 +400,7 @@ export default function AdminReviewsPage() {
                   )}{" "}
                   of {table.getFilteredRowModel().rows.length} reviews
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -394,6 +409,9 @@ export default function AdminReviewsPage() {
                   >
                     Previous
                   </Button>
+                  <span className="text-sm text-gray-600">
+                    Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
@@ -406,66 +424,6 @@ export default function AdminReviewsPage() {
               </div>
             </Card>
           </div>
-        )}
-
-        {/* Send Review Request Tab */}
-        {activeTab === "send" && (
-          <Card className="p-6">
-            <form onSubmit={handleSendRequest} className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="clientName">Client Name *</Label>
-                    <Input
-                      id="clientName"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      placeholder="John Doe"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="clientEmail">Email Address *</Label>
-                    <Input
-                      id="clientEmail"
-                      type="email"
-                      value={clientEmail}
-                      onChange={(e) => setClientEmail(e.target.value)}
-                      placeholder="john@example.com"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="clientPhone">Phone Number (Optional)</Label>
-                    <Input
-                      id="clientPhone"
-                      type="tel"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="message">Message</Label>
-                <Textarea
-                  id="message"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={4}
-                  className="resize-none"
-                />
-              </div>
-
-              <Button type="submit" disabled={sendLoading} className="bg-sky-600 hover:bg-sky-700">
-                <Send className="h-4 w-4 mr-2" />
-                {sendLoading ? "Sending..." : "Send Review Request"}
-              </Button>
-            </form>
-          </Card>
         )}
 
         {/* Import CSV Tab */}
@@ -523,6 +481,69 @@ export default function AdminReviewsPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Send Review Request</DialogTitle>
+            <DialogDescription>Enter client details to send a review request via email or SMS.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSendRequest}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientName">Client Name *</Label>
+                <Input
+                  id="clientName"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientEmail">Email Address *</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientPhone">Phone Number (Optional)</Label>
+                <Input
+                  id="clientPhone"
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="+1 (555) 123-4567"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="message">Message</Label>
+                <Textarea
+                  id="message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={4}
+                  className="resize-none"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={sendLoading} className="bg-sky-600 hover:bg-sky-700">
+                <Mail className="h-4 w-4 mr-2" />
+                {sendLoading ? "Sending..." : "Send Request"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

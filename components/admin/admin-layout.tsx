@@ -71,6 +71,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     return null
   }
 
+  const firstName = user?.name?.split(" ")[0] || "Admin"
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar backdrop */}
@@ -113,7 +115,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="p-4 border-t border-gray-200">
             <div className="flex items-center gap-3 px-4 py-3 mb-2">
               <div className="h-8 w-8 rounded-full bg-sky-100 flex items-center justify-center">
-                <span className="text-sm font-medium text-sky-700">{user?.name?.charAt(0) || "A"}</span>
+                <span className="text-sm font-medium text-sky-700">{firstName.charAt(0)}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{user?.name || "Admin"}</p>
@@ -145,7 +147,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Button>
             <div className="flex-1 lg:flex-none">
               <h1 className="text-xl font-semibold text-gray-900">
-                {greeting}, {user?.name?.split(" ")[0] || "Admin"}!
+                {greeting}, {firstName}!
               </h1>
             </div>
           </div>
