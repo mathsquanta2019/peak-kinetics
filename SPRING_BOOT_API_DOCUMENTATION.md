@@ -81,7 +81,7 @@ Authorization: Bearer {token}  // For protected routes
 {
   "success": true,
   "message": "Account created successfully",
-  "user": {
+  "data": {
     "id": "admin-123",
     "email": "john.smith@peakkinetics.com",
     "name": "Dr. John Smith"
@@ -219,9 +219,8 @@ Authorization: Bearer {token}  // For protected routes
 **Description:** Retrieves all published reviews (public endpoint).
 
 **Query Parameters:**
-- `status` (optional): Filter by status (`published`, `draft`)
-- `limit` (optional): Number of reviews to return
-- `offset` (optional): Pagination offset
+- `page` (optional): Page number (default: 0)
+- `size` (optional): Number of reviews per page (default: 20)
 
 **Response (200 OK):**
 ```json
@@ -231,18 +230,13 @@ Authorization: Bearer {token}  // For protected routes
     {
       "id": "review-001",
       "name": "John Smith",
-      "role": "Patient",
       "rating": 5,
-      "text": "Outstanding care! The team at Peak Kinetics helped me recover...",
-      "fullText": "Outstanding care! The team at Peak Kinetics helped me recover from a sports injury...",
-      "date": "Jan 15, 2024",
-      "treatment": "Sports Rehabilitation",
-      "image": "/happy-patient-headshot.jpg",
-      "createdAt": "2024-01-15T10:30:00Z"
+      "text": "Outstanding care! The team at Peak Kinetics helped me recover from a sports injury quickly and effectively.",
+      "date": "2024-01-15T10:30:00Z"
     }
   ],
   "total": 156,
-  "page": 1,
+  "page": 0,
   "pageSize": 20
 }
 ```
@@ -256,13 +250,15 @@ Authorization: Bearer {token}  // For protected routes
 ```json
 {
   "name": "John Smith",
-  "role": "Patient",
   "rating": 5,
-  "text": "Great experience!",
-  "fullText": "Great experience with the therapy team...",
-  "image": "/placeholder.svg"
+  "text": "Great experience with the therapy team. Very professional and knowledgeable."
 }
 ```
+
+**Validation Rules:**
+- `name` (required): 2-100 characters, alphabetic characters and spaces only
+- `rating` (required): Integer between 1 and 5
+- `text` (required): 20-1000 characters
 
 **Response (200 OK):**
 ```json
@@ -282,7 +278,12 @@ Authorization: Bearer {token}  // For protected routes
 ```json
 {
   "success": false,
-  "error": "Name and rating are required"
+  "error": "Name, rating, and review text are required",
+  "validationErrors": {
+    "name": "Name must be between 2 and 100 characters",
+    "rating": "Rating must be between 1 and 5",
+    "text": "Review must be at least 20 characters"
+  }
 }
 ```
 
@@ -333,26 +334,23 @@ Authorization: Bearer {token}  // For protected routes
 {
   "clientName": "Jane Doe",
   "email": "jane.doe@example.com",
-  "phone": "+1-737-368-2653",
-  "message": "We'd love to hear about your experience with Peak Kinetics!"
+  "phone": "+17373682653"
 }
 ```
+
+**Validation Rules:**
+- `clientName` (required): 2-200 characters
+- `email` (optional): Valid email format if provided
+- `phone` (optional): Valid E.164 phone format if provided
+- At least one of `email` or `phone` must be provided
 
 **Response (200 OK):**
 ```json
 {
   "success": true,
   "message": "Review request sent successfully to Jane Doe",
-  "sentVia": ["email", "sms"],
-  "reviewUrl": "https://peakkinetics.com/review?token=abc123"
-}
-```
-
-**Response (400 Bad Request):**
-```json
-{
-  "success": false,
-  "error": "Email or phone number is required"
+  "sentVia": ["email"],
+  "reviewUrl": "https://peakkinetics.com/review"
 }
 ```
 
@@ -373,29 +371,17 @@ file: [CSV File]
 ```
 
 **CSV Format Expected:**
-The CSV should have these headers:
-- Patient Account Number
+The CSV should have these headers (Healthcare Survey Export):
 - Patient First Name
 - Patient Last Name
-- Case Title
-- Case Facility
-- Case Therapist
-- Case Status
-- Survey Sent Date
-- Response
-- Clinic NPS
-- Provider NPS
-- Likelihood to Receive Specialist Care
-- Discharge Date
-- Survey Completion Date
-- Is Invalid
 - Comments
+- Survey Completion Date
 
 **The backend should extract:**
 - `Patient First Name` + `Patient Last Name` → `name`
-- `Comments` → `text` and `fullText`
+- `Comments` → `text`
 - `Survey Completion Date` → `date`
-- `Clinic NPS` → Convert to 1-5 star rating (NPS/2)
+- Default rating to 5 stars (or parse from NPS if available)
 
 **Response (200 OK):**
 ```json
@@ -407,7 +393,7 @@ The CSV should have these headers:
   "errors": [
     {
       "row": 12,
-      "reason": "Missing required fields"
+      "reason": "Missing required fields (name or comments)"
     }
   ]
 }
@@ -428,16 +414,19 @@ The CSV should have these headers:
   "firstName": "John",
   "lastName": "Doe",
   "email": "john.doe@example.com",
-  "phone": "+1-737-368-2653",
+  "phone": "+17373682653",
   "address": "123 Main St, Round Rock, TX 78681",
-  "message": "I would like to schedule an appointment..."
+  "message": "I would like to schedule an appointment for sports injury rehabilitation."
 }
 ```
 
 **Validation Rules:**
-- `email` (required): Must be valid email format
-- `message` (required): Minimum 10 characters
-- `firstName`, `lastName`, `phone`, `address` (optional)
+- `email` (required): Must be valid email format (RFC 5322)
+- `message` (required): Minimum 10 characters, maximum 2000 characters
+- `firstName` (optional): 1-100 characters if provided
+- `lastName` (optional): 1-100 characters if provided
+- `phone` (optional): Valid E.164 format if provided (e.g., +17373682653)
+- `address` (optional): Maximum 500 characters if provided
 
 **Response (200 OK):**
 ```json
@@ -549,7 +538,7 @@ The CSV should have these headers:
       "id": "post-001",
       "title": "5 Exercises for Lower Back Pain Relief",
       "slug": "5-exercises-lower-back-pain",
-      "excerpt": "Discover effective exercises to alleviate lower back pain and improve mobility.",
+      "excerpt": "Discover effective exercises for lower back pain and improve mobility.",
       "content": "# Introduction\n\nLower back pain affects millions...",
       "featuredImage": "https://storage.example.com/blog/lower-back-exercises.jpg",
       "status": "published",
@@ -614,11 +603,12 @@ The CSV should have these headers:
 
 **Validation Rules:**
 - `title` (required): 5-200 characters
-- `slug` (required): Unique, URL-friendly string
+- `slug` (required): Unique, URL-friendly string (lowercase, hyphens, no spaces)
 - `content` (required): Minimum 100 characters
-- `excerpt` (optional): Maximum 300 characters
+- `excerpt` (optional): Maximum 300 characters, auto-generated from content if not provided
 - `status` (required): Either "published" or "draft"
-- `tags` (optional): Array of strings
+- `tags` (optional): Array of strings, each 2-50 characters, maximum 10 tags
+- `featuredImage` (optional): Valid URL format
 
 **Response (200 OK):**
 ```json
@@ -787,10 +777,12 @@ Access-Control-Allow-Origin: https://peakkinetics.com
 ```sql
 CREATE TABLE admin_users (
   id VARCHAR(36) PRIMARY KEY,
+  title VARCHAR(10) NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'Administrator',
   last_login TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -801,15 +793,9 @@ CREATE TABLE admin_users (
 ```sql
 CREATE TABLE reviews (
   id VARCHAR(36) PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  role VARCHAR(100) DEFAULT 'Patient',
+  name VARCHAR(100) NOT NULL,
   rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
   text TEXT NOT NULL,
-  full_text TEXT,
-  date VARCHAR(50),
-  treatment VARCHAR(255),
-  image VARCHAR(500),
-  status VARCHAR(20) DEFAULT 'published',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -819,10 +805,10 @@ CREATE TABLE reviews (
 ```sql
 CREATE TABLE messages (
   id VARCHAR(36) PRIMARY KEY,
-  first_name VARCHAR(255),
-  last_name VARCHAR(255),
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
   email VARCHAR(255) NOT NULL,
-  phone VARCHAR(50),
+  phone VARCHAR(20),
   address TEXT,
   message TEXT NOT NULL,
   read BOOLEAN DEFAULT FALSE,
@@ -835,12 +821,12 @@ CREATE TABLE messages (
 ```sql
 CREATE TABLE blog_posts (
   id VARCHAR(36) PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
+  title VARCHAR(200) NOT NULL,
   slug VARCHAR(255) UNIQUE NOT NULL,
   excerpt TEXT,
   content TEXT NOT NULL,
   featured_image VARCHAR(500),
-  status VARCHAR(20) DEFAULT 'draft',
+  status VARCHAR(20) NOT NULL DEFAULT 'draft',
   author_id VARCHAR(36),
   published_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -853,7 +839,7 @@ CREATE TABLE blog_posts (
 ```sql
 CREATE TABLE blog_tags (
   id VARCHAR(36) PRIMARY KEY,
-  name VARCHAR(100) UNIQUE NOT NULL,
+  name VARCHAR(50) UNIQUE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -883,7 +869,7 @@ curl -X POST http://localhost:8080/api/admin/auth/login \
 ```bash
 curl -X POST http://localhost:8080/api/reviews \
   -H "Content-Type: application/json" \
-  -d '{"name":"John Doe","rating":5,"text":"Great service!","fullText":"Great service! Highly recommend."}'
+  -d '{"name":"John Doe","rating":5,"text":"Great service! Highly recommend."}'
 ```
 
 **Test Get Reviews:**
@@ -1329,6 +1315,666 @@ const checkBackendHealth = async () => {
     console.error('Backend is down');
   }
 };
+```
+
+---
+
+## 14. Java Entity Classes and DTOs
+
+### Review Entity
+
+```java
+package com.peakkinetics.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreatedDate;
+import org.hibernate.annotations.UpdatedDate;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "reviews", indexes = {
+    @Index(name = "idx_rating", columnList = "rating"),
+    @Index(name = "idx_created_at", columnList = "created_at")
+})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Review {
+    
+    @Id
+    @Column(length = 36)
+    private String id = UUID.randomUUID().toString();
+    
+    @NotBlank(message = "Name is required")
+    @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
+    @Pattern(regexp = "^[a-zA-Z\\s]+$", message = "Name must contain only letters and spaces")
+    @Column(nullable = false, length = 100)
+    private String name;
+    
+    @NotNull(message = "Rating is required")
+    @Min(value = 1, message = "Rating must be at least 1")
+    @Max(value = 5, message = "Rating must not exceed 5")
+    @Column(nullable = false)
+    private Integer rating;
+    
+    @NotBlank(message = "Review text is required")
+    @Size(min = 20, max = 1000, message = "Review must be between 20 and 1000 characters")
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String text;
+    
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @UpdatedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+### Review DTO (Data Transfer Object)
+
+```java
+package com.peakkinetics.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ReviewDTO {
+    
+    @NotBlank(message = "Name is required")
+    @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
+    @Pattern(regexp = "^[a-zA-Z\\s]+$", message = "Name must contain only letters and spaces")
+    private String name;
+    
+    @NotNull(message = "Rating is required")
+    @Min(value = 1, message = "Rating must be at least 1")
+    @Max(value = 5, message = "Rating must not exceed 5")
+    private Integer rating;
+    
+    @NotBlank(message = "Review text is required")
+    @Size(min = 20, max = 1000, message = "Review must be between 20 and 1000 characters")
+    private String text;
+}
+```
+
+### Admin User Entity
+
+```java
+package com.peakkinetics.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreatedDate;
+import org.hibernate.annotations.UpdatedDate;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "admin_users", indexes = {
+    @Index(name = "idx_email", columnList = "email", unique = true)
+})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AdminUser {
+    
+    @Id
+    @Column(length = 36)
+    private String id = UUID.randomUUID().toString();
+    
+    @NotBlank(message = "Title is required")
+    @Column(nullable = false, length = 10)
+    private String title; // Dr., Mr., Mrs., Ms.
+    
+    @NotBlank(message = "First name is required")
+    @Size(min = 2, max = 100, message = "First name must be between 2 and 100 characters")
+    @Column(name = "first_name", nullable = false, length = 100)
+    private String firstName;
+    
+    @NotBlank(message = "Last name is required")
+    @Size(min = 2, max = 100, message = "Last name must be between 2 and 100 characters")
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName;
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    @Column(name = "password_hash", nullable = false, length = 255)
+    private String passwordHash;
+    
+    @Column(length = 50)
+    private String role = "Administrator";
+    
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
+    
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @UpdatedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    // Helper method to get full name
+    public String getFullName() {
+        return title + " " + firstName + " " + lastName;
+    }
+    
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+### Admin Registration DTO
+
+```java
+package com.peakkinetics.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AdminRegistrationDTO {
+    
+    @NotBlank(message = "Title is required")
+    @Pattern(regexp = "^(Dr\\.|Mr\\.|Mrs\\.|Ms\\.)$", message = "Title must be Dr., Mr., Mrs., or Ms.")
+    private String title;
+    
+    @NotBlank(message = "First name is required")
+    @Size(min = 2, max = 100, message = "First name must be between 2 and 100 characters")
+    private String firstName;
+    
+    @NotBlank(message = "Last name is required")
+    @Size(min = 2, max = 100, message = "Last name must be between 2 and 100 characters")
+    private String lastName;
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters")
+    @Pattern(
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+        message = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+    )
+    private String password;
+}
+```
+
+### Message Entity
+
+```java
+package com.peakkinetics.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreatedDate;
+import org.hibernate.annotations.UpdatedDate;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "messages", indexes = {
+    @Index(name = "idx_read", columnList = "read"),
+    @Index(name = "idx_created_at", columnList = "created_at")
+})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Message {
+    
+    @Id
+    @Column(length = 36)
+    private String id = UUID.randomUUID().toString();
+    
+    @Size(max = 100, message = "First name must not exceed 100 characters")
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+    
+    @Size(max = 100, message = "Last name must not exceed 100 characters")
+    @Column(name = "last_name", length = 100)
+    private String lastName;
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
+    @Column(nullable = false, length = 255)
+    private String email;
+    
+    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Phone must be in valid E.164 format")
+    @Column(length = 20)
+    private String phone;
+    
+    @Size(max = 500, message = "Address must not exceed 500 characters")
+    @Column(columnDefinition = "TEXT")
+    private String address;
+    
+    @NotBlank(message = "Message is required")
+    @Size(min = 10, max = 2000, message = "Message must be between 10 and 2000 characters")
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String message;
+    
+    @Column(name = "read", nullable = false)
+    private Boolean read = false;
+    
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @UpdatedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+        if (read == null) {
+            read = false;
+        }
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+### Message DTO
+
+```java
+package com.peakkinetics.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class MessageDTO {
+    
+    @Size(max = 100, message = "First name must not exceed 100 characters")
+    private String firstName;
+    
+    @Size(max = 100, message = "Last name must not exceed 100 characters")
+    private String lastName;
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
+    private String email;
+    
+    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Phone must be in valid E.164 format")
+    private String phone;
+    
+    @Size(max = 500, message = "Address must not exceed 500 characters")
+    private String address;
+    
+    @NotBlank(message = "Message is required")
+    @Size(min = 10, max = 2000, message = "Message must be between 10 and 2000 characters")
+    private String message;
+}
+```
+
+### Blog Post Entity
+
+```java
+package com.peakkinetics.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreatedDate;
+import org.hibernate.annotations.UpdatedDate;
+
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
+@Entity
+@Table(name = "blog_posts", indexes = {
+    @Index(name = "idx_slug", columnList = "slug", unique = true),
+    @Index(name = "idx_status", columnList = "status"),
+    @Index(name = "idx_published_at", columnList = "published_at")
+})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BlogPost {
+    
+    @Id
+    @Column(length = 36)
+    private String id = UUID.randomUUID().toString();
+    
+    @NotBlank(message = "Title is required")
+    @Size(min = 5, max = 200, message = "Title must be between 5 and 200 characters")
+    @Column(nullable = false, length = 200)
+    private String title;
+    
+    @NotBlank(message = "Slug is required")
+    @Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Slug must be URL-friendly (lowercase, hyphens only)")
+    @Column(nullable = false, unique = true, length = 255)
+    private String slug;
+    
+    @Size(max = 300, message = "Excerpt must not exceed 300 characters")
+    @Column(columnDefinition = "TEXT")
+    private String excerpt;
+    
+    @NotBlank(message = "Content is required")
+    @Size(min = 100, message = "Content must be at least 100 characters")
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String content;
+    
+    @Column(name = "featured_image", length = 500)
+    private String featuredImage;
+    
+    @NotBlank(message = "Status is required")
+    @Pattern(regexp = "^(published|draft)$", message = "Status must be 'published' or 'draft'")
+    @Column(nullable = false, length = 20)
+    private String status = "draft";
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id")
+    private AdminUser author;
+    
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+        name = "blog_post_tags",
+        joinColumns = @JoinColumn(name = "post_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<BlogTag> tags = new HashSet<>();
+    
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+    
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @UpdatedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+        
+        if ("published".equals(status) && publishedAt == null) {
+            publishedAt = LocalDateTime.now();
+        }
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+        
+        if ("published".equals(status) && publishedAt == null) {
+            publishedAt = LocalDateTime.now();
+        }
+    }
+}
+```
+
+### Blog Tag Entity
+
+```java
+package com.peakkinetics.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreatedDate;
+
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
+@Entity
+@Table(name = "blog_tags", indexes = {
+    @Index(name = "idx_tag_name", columnList = "name", unique = true)
+})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BlogTag {
+    
+    @Id
+    @Column(length = 36)
+    private String id = UUID.randomUUID().toString();
+    
+    @NotBlank(message = "Tag name is required")
+    @Size(min = 2, max = 50, message = "Tag name must be between 2 and 50 characters")
+    @Column(nullable = false, unique = true, length = 100)
+    private String name;
+    
+    @ManyToMany(mappedBy = "tags")
+    private Set<BlogPost> posts = new HashSet<>();
+    
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
+        createdAt = LocalDateTime.now();
+    }
+}
+```
+
+### Blog Post DTO
+
+```java
+package com.peakkinetics.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BlogPostDTO {
+    
+    @NotBlank(message = "Title is required")
+    @Size(min = 5, max = 200, message = "Title must be between 5 and 200 characters")
+    private String title;
+    
+    @NotBlank(message = "Slug is required")
+    @Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Slug must be URL-friendly")
+    private String slug;
+    
+    @Size(max = 300, message = "Excerpt must not exceed 300 characters")
+    private String excerpt;
+    
+    @NotBlank(message = "Content is required")
+    @Size(min = 100, message = "Content must be at least 100 characters")
+    private String content;
+    
+    private String featuredImage;
+    
+    @NotBlank(message = "Status is required")
+    @Pattern(regexp = "^(published|draft)$", message = "Status must be 'published' or 'draft'")
+    private String status;
+    
+    @Size(max = 10, message = "Maximum 10 tags allowed")
+    private List<String> tags;
+}
+```
+
+### Global Exception Handler
+
+```java
+package com.peakkinetics.exception;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(
+            MethodArgumentNotValidException ex) {
+        
+        Map<String, String> validationErrors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            validationErrors.put(fieldName, errorMessage);
+        });
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "Validation failed");
+        response.put("validationErrors", validationErrors);
+        response.put("timestamp", Instant.now());
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+    
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(
+            ConstraintViolationException ex) {
+        
+        Map<String, String> validationErrors = new HashMap<>();
+        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+            String fieldName = violation.getPropertyPath().toString();
+            String errorMessage = violation.getMessage();
+            validationErrors.put(fieldName, errorMessage);
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "Validation failed");
+        response.put("validationErrors", validationErrors);
+        response.put("timestamp", Instant.now());
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+    
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "An unexpected error occurred");
+        response.put("message", ex.getMessage());
+        response.put("timestamp", Instant.now());
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+}
+```
+
+### API Response Wrapper
+
+```java
+package com.peakkinetics.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ApiResponse<T> {
+    private boolean success;
+    private String message;
+    private T data;
+    
+    public static <T> ApiResponse<T> success(String message, T data) {
+        return new ApiResponse<>(true, message, data);
+    }
+    
+    public static <T> ApiResponse<T> error(String message) {
+        return new ApiResponse<>(false, message, null);
+    }
+}
 ```
 
 ---
