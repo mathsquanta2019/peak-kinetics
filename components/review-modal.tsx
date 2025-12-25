@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { SuccessToast } from "@/components/ui/success-toast"
+import { API_ENDPOINTS } from "@/lib/api-config"
 
 import type { Review } from "./reviews-section"
 
@@ -32,7 +33,7 @@ export function ReviewModal({ isOpen, onClose, onSubmit }: ReviewModalProps) {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch("/api/reviews", {
+      const response = await fetch(API_ENDPOINTS.reviews.create, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

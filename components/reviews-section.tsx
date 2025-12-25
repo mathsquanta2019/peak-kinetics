@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ReviewModal } from "./review-modal"
 import { ReviewDetailModal } from "./review-detail-modal"
+import { API_ENDPOINTS } from "@/lib/api-config"
 
 export interface Review {
   id: string
@@ -119,7 +120,7 @@ const mockReviews: Review[] = [
 
 const fetchReviewsFromBackend = async (): Promise<Review[]> => {
   try {
-    const response = await fetch("/api/reviews")
+    const response = await fetch(API_ENDPOINTS.reviews.list)
     const result = await response.json()
     if (result.success && result.data) {
       return result.data

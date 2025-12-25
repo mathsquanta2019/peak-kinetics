@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { MapPin, Phone, Mail, Clock, MessageSquare, AlertCircle, Map } from "lucide-react"
 import { SuccessToast } from "@/components/ui/success-toast"
+import { API_ENDPOINTS } from "@/lib/api-config"
 
 interface FormData {
   firstName: string
@@ -95,7 +96,7 @@ export function ContactSection() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch("/api/messages", {
+      const response = await fetch(API_ENDPOINTS.messages.create, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
