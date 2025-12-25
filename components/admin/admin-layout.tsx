@@ -43,6 +43,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     if (!adminAuth.isAuthenticated()) {
       router.push("/admin/login")
+    } else {
+      setUser(adminAuth.getUser())
     }
   }, [router])
 

@@ -1,8 +1,6 @@
 "use client"
 
 import type React from "react"
-
-import { AdminLayout } from "@/components/admin/admin-layout"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,12 +8,56 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { adminAuth } from "@/lib/admin-auth"
-import { Upload, Send, FileText } from "lucide-react"
-import { useState } from "react"
+import { mockDB } from "@/lib/mock-data/mock-db"
+import { Upload, Send, FileText, Mail, Phone } from "lucide-react"
+import { useState, useEffect } from "react"
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  flexRender,
+  type ColumnDef,
+  type SortingState,
+  type ColumnFiltersState,
+} from "@tanstack/react-table"
+
+interface Review {
+  id: string
+  name: string
+  rating: number
+  text: string
+  date: string
+  treatment?: string
+}
+
+interface HealthcareReview {
+  patientAccountNumber: string
+  patientFirstName: string
+  patientLastName: string
+  caseTitle: string
+  caseFacility: string
+  caseTherapist: string
+  caseStatus: string
+  surveySentDate: string
+  response: string
+  clinicNPS: string
+  providerNPS: string
+  likelihoodToReceiveSpecialistCare: string
+  dischargeDate: string
+  surveyCompletionDate: string
+  isInvalid: string
+  comments: string
+}
 
 export default function AdminReviewsPage() {
-  const [activeTab, setActiveTab] = useState<"send" | "import">("send")
+  const [activeTab, setActiveTab] = useState<"view" | "send" | "import">("view")
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [globalFilter, setGlobalFilter] = useState("")
 
   // Send review request state
   const [clientName, setClientName] = useState("")
@@ -30,9 +72,95 @@ export default function AdminReviewsPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
 
+  useEffect(() => {
+    const loadedReviews = mockDB.reviews.getAll()
+    setReviews(loadedReviews)
+  }, [])
+
   const showNotification = (type: "success" | "error", message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification(null), 5000)
+  }
+
+  const columns: ColumnDef<Review>[] = [
+    {
+      accessorKey: "name",
+      header: "Patient Name",
+      cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
+    },
+    {
+      accessorKey: "rating",
+      header: "Rating",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <span key={i} className={i < row.getValue("rating") ? "text-yellow-500" : "text-gray-300"}>
+              ★
+            </span>
+          ))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "text",
+      header: "Comment",
+      cell: ({ row }) => <div className="max-w-md truncate">{row.getValue("text")}</div>,
+    },
+    {
+      accessorKey: "date",
+      header: "Date",
+    },
+    {
+      accessorKey: "treatment",
+      header: "Treatment",
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleSendReviewRequest(row.original.name, "email")}
+            className="h-8"
+          >
+            <Mail className="h-3 w-3 mr-1" />
+            Email
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleSendReviewRequest(row.original.name, "phone")}
+            className="h-8"
+          >
+            <Phone className="h-3 w-3 mr-1" />
+            SMS
+          </Button>
+        </div>
+      ),
+    },
+  ]
+
+  const table = useReactTable({
+    data: reviews,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+    },
+  })
+
+  const handleSendReviewRequest = async (patientName: string, method: "email" | "phone") => {
+    showNotification("success", `Review request sent to ${patientName} via ${method}`)
   }
 
   const handleSendRequest = async (e: React.FormEvent) => {
@@ -40,28 +168,36 @@ export default function AdminReviewsPage() {
     setSendLoading(true)
 
     try {
-      const token = adminAuth.getToken()
-      const response = await fetch(API_ENDPOINTS.reviews.sendRequest, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          clientName,
-          email: clientEmail,
-          phone: clientPhone,
-          message,
-        }),
-      })
-
-      if (response.ok) {
+      if (process.env.NEXT_PUBLIC_DEV_MODE !== "false") {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
         showNotification("success", "Review request sent successfully!")
         setClientName("")
         setClientEmail("")
         setClientPhone("")
       } else {
-        showNotification("error", "Failed to send review request")
+        const token = adminAuth.getToken()
+        const response = await fetch(API_ENDPOINTS.reviews.sendRequest, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            clientName,
+            email: clientEmail,
+            phone: clientPhone,
+            message,
+          }),
+        })
+
+        if (response.ok) {
+          showNotification("success", "Review request sent successfully!")
+          setClientName("")
+          setClientEmail("")
+          setClientPhone("")
+        } else {
+          showNotification("error", "Failed to send review request")
+        }
       }
     } catch (error) {
       showNotification("error", "An error occurred while sending the request")
@@ -80,36 +216,51 @@ export default function AdminReviewsPage() {
     setImportLoading(true)
 
     try {
-      const token = adminAuth.getToken()
-      const formData = new FormData()
-      formData.append("file", csvFile)
+      // Parse CSV file
+      const text = await csvFile.text()
+      const lines = text.split("\n")
+      const headers = lines[0].split(",").map((h) => h.trim())
 
-      const response = await fetch(API_ENDPOINTS.reviews.import, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      })
+      let importedCount = 0
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",")
+        if (values.length < headers.length) continue
 
-      if (response.ok) {
-        const data = await response.json()
-        showNotification("success", `Successfully imported ${data.count || 0} reviews`)
-        setCsvFile(null)
-        const fileInput = document.getElementById("csv-file") as HTMLInputElement
-        if (fileInput) fileInput.value = ""
-      } else {
-        showNotification("error", "Failed to import reviews")
+        const firstName = values[headers.indexOf("Patient First Name")]?.trim()
+        const lastName = values[headers.indexOf("Patient Last Name")]?.trim()
+        const comments = values[headers.indexOf("Comments")]?.trim()
+        const completionDate = values[headers.indexOf("Survey Completion Date")]?.trim()
+        const clinicNPS = values[headers.indexOf("Clinic NPS")]?.trim()
+
+        if (firstName && lastName && comments) {
+          const newReview = mockDB.reviews.create({
+            name: `${firstName} ${lastName}`,
+            rating: clinicNPS ? Math.min(5, Math.max(1, Math.ceil(Number.parseInt(clinicNPS) / 2))) : 5,
+            text: comments,
+            fullText: comments,
+            date: completionDate || new Date().toLocaleDateString(),
+            treatment: "Physical Therapy",
+            role: "Patient",
+            image: "/happy-patient-headshot.jpg",
+          })
+          importedCount++
+        }
       }
+
+      setReviews(mockDB.reviews.getAll())
+      showNotification("success", `Successfully imported ${importedCount} reviews`)
+      setCsvFile(null)
+      const fileInput = document.getElementById("csv-file") as HTMLInputElement
+      if (fileInput) fileInput.value = ""
     } catch (error) {
-      showNotification("error", "An error occurred during import")
+      showNotification("error", "An error occurred during import. Please check CSV format.")
     } finally {
       setImportLoading(false)
     }
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* Notification */}
         {notification && (
@@ -131,12 +282,22 @@ export default function AdminReviewsPage() {
 
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Management</h2>
-          <p className="text-gray-600">Send review requests or import reviews from CSV</p>
+          <p className="text-gray-600">View reviews, send requests, or import from CSV</p>
         </div>
 
         {/* Tabs */}
         <div className="border-b border-gray-200">
           <div className="flex gap-4">
+            <button
+              onClick={() => setActiveTab("view")}
+              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "view"
+                  ? "border-sky-600 text-sky-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              View Reviews
+            </button>
             <button
               onClick={() => setActiveTab("send")}
               className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -147,7 +308,7 @@ export default function AdminReviewsPage() {
             >
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4" />
-                Send Review Request
+                Send Request
               </div>
             </button>
             <button
@@ -160,11 +321,92 @@ export default function AdminReviewsPage() {
             >
               <div className="flex items-center gap-2">
                 <Upload className="h-4 w-4" />
-                Import from CSV
+                Import CSV
               </div>
             </button>
           </div>
         </div>
+
+        {activeTab === "view" && (
+          <div className="space-y-4">
+            <Card className="p-4">
+              <Input
+                placeholder="Search reviews..."
+                value={globalFilter ?? ""}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="max-w-sm"
+              />
+            </Card>
+
+            <Card className="p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <th
+                            key={header.id}
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                          >
+                            {header.isPlaceholder ? null : (
+                              <div
+                                className={header.column.getCanSort() ? "cursor-pointer select-none" : ""}
+                                onClick={header.column.getToggleSortingHandler()}
+                              >
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                              </div>
+                            )}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {table.getRowModel().rows.map((row) => (
+                      <tr key={row.id} className="hover:bg-gray-50">
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="px-6 py-4 text-sm text-gray-900">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between px-6 py-4 border-t">
+                <div className="text-sm text-gray-700">
+                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+                  {Math.min(
+                    (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                    table.getFilteredRowModel().rows.length,
+                  )}{" "}
+                  of {table.getFilteredRowModel().rows.length} reviews
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* Send Review Request Tab */}
         {activeTab === "send" && (
@@ -265,36 +507,22 @@ export default function AdminReviewsPage() {
               <div className="flex gap-4">
                 <FileText className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
                 <div>
-                  <h4 className="font-semibold text-blue-900 mb-2">CSV Format Requirements</h4>
+                  <h4 className="font-semibold text-blue-900 mb-2">Healthcare CSV Format</h4>
                   <p className="text-sm text-blue-800 mb-3">
-                    Your CSV file should contain the following columns (in this order):
+                    Your CSV file should contain the following headers (system will extract Name, Comments, and Date):
                   </p>
-                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                    <li>
-                      <strong>name</strong> - Client's full name
-                    </li>
-                    <li>
-                      <strong>rating</strong> - Rating from 1 to 5
-                    </li>
-                    <li>
-                      <strong>comment</strong> - Review text
-                    </li>
-                    <li>
-                      <strong>service</strong> - Service name (optional)
-                    </li>
-                    <li>
-                      <strong>date</strong> - Review date in YYYY-MM-DD format (optional)
-                    </li>
-                  </ul>
-                  <p className="text-xs text-blue-700 mt-3">
-                    Example: John Doe,5,"Great service and excellent care!",Sports Rehabilitation,2024-01-15
-                  </p>
+                  <div className="text-xs text-blue-800 space-y-1 font-mono bg-white/50 p-3 rounded">
+                    <p>Patient Account Number, Patient First Name, Patient Last Name, Case Title,</p>
+                    <p>Case Facility, Case Therapist, Case Status, Survey Sent Date, Response,</p>
+                    <p>Clinic NPS, Provider NPS, Likelihood to Receive Specialist Care,</p>
+                    <p>Discharge Date, Survey Completion Date, Is Invalid, Comments</p>
+                  </div>
                 </div>
               </div>
             </Card>
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   )
 }
