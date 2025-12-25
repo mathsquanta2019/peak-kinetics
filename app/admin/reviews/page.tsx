@@ -1,5 +1,9 @@
 "use client"
 
+import { useEffect } from "react"
+
+import { useState } from "react"
+
 import type React from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -18,8 +22,7 @@ import {
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { adminAuth } from "@/lib/admin-auth"
 import { mockDB } from "@/lib/mock-data/mock-db"
-import { Upload, Send, FileText, ArrowUpDown } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Upload, Send, FileText, ArrowUpDown, MoreVertical, Eye, Trash2 } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -32,6 +35,13 @@ import {
   type ColumnFiltersState,
   type RowSelectionState,
 } from "@tanstack/react-table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 interface Review {
   id: string
@@ -63,9 +73,16 @@ export default function AdminReviewsPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
 
-  useEffect(() => {
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
+
+  const fetchReviews = () => {
     const loadedReviews = mockDB.reviews.getAll()
     setReviews(loadedReviews)
+  }
+
+  useEffect(() => {
+    fetchReviews()
   }, [])
 
   const showNotification = (type: "success" | "error", message: string) => {
@@ -81,6 +98,7 @@ export default function AdminReviewsPage() {
           checked={table.getIsAllPageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
+          className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
         />
       ),
       cell: ({ row }) => (
@@ -88,6 +106,7 @@ export default function AdminReviewsPage() {
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
+          className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
         />
       ),
       enableSorting: false,
@@ -156,6 +175,39 @@ export default function AdminReviewsPage() {
     {
       accessorKey: "treatment",
       header: "Treatment",
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const review = row.original
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedReview(review)
+                  setViewDialogOpen(true)
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleDeleteReview(review.id)} className="text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Review
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
     },
   ]
 
@@ -263,7 +315,7 @@ export default function AdminReviewsPage() {
         }
       }
 
-      setReviews(mockDB.reviews.getAll())
+      fetchReviews()
       showNotification("success", `Successfully imported ${importedCount} reviews`)
       setCsvFile(null)
       const fileInput = document.getElementById("csv-file") as HTMLInputElement
@@ -272,6 +324,28 @@ export default function AdminReviewsPage() {
       showNotification("error", "An error occurred during import. Please check CSV format.")
     } finally {
       setImportLoading(false)
+    }
+  }
+
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      if (process.env.NEXT_PUBLIC_DEV_MODE === "true") {
+        mockDB.deleteReview(reviewId)
+        fetchReviews()
+        setNotification({ type: "success", message: "Review deleted successfully" })
+      } else {
+        const response = await fetch(`${API_ENDPOINTS.REVIEWS}/${reviewId}`, {
+          method: "DELETE",
+        })
+        if (response.ok) {
+          fetchReviews()
+          setNotification({ type: "success", message: "Review deleted successfully" })
+        } else {
+          throw new Error("Failed to delete review")
+        }
+      }
+    } catch (error) {
+      setNotification({ type: "error", message: "Failed to delete review" })
     }
   }
 
@@ -540,6 +614,54 @@ export default function AdminReviewsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Review Details</DialogTitle>
+            <DialogDescription>Full review information</DialogDescription>
+          </DialogHeader>
+          {selectedReview && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Patient Name</Label>
+                <p className="mt-1 text-gray-900">{selectedReview.name}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Rating</Label>
+                <div className="flex items-center gap-1 mt-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={i < selectedReview.rating ? "text-yellow-500 text-xl" : "text-gray-300 text-xl"}
+                    >
+                      ★
+                    </span>
+                  ))}
+                  <span className="ml-2 text-gray-600">({selectedReview.rating}/5)</span>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Treatment</Label>
+                <p className="mt-1 text-gray-900">{selectedReview.treatment}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Date</Label>
+                <p className="mt-1 text-gray-900">{selectedReview.date}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Comment</Label>
+                <p className="mt-1 text-gray-900 whitespace-pre-wrap">{selectedReview.text}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
