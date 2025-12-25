@@ -8,8 +8,31 @@ export interface AdminUser {
   name: string
 }
 
+const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true"
+
+// Development credentials for testing (remove in production)
+const DEV_CREDENTIALS = {
+  email: "admin@peakkinetics.com",
+  password: "admin123",
+}
+
 export const adminAuth = {
   login: async (email: string, password: string): Promise<AdminUser | null> => {
+    if (DEV_MODE) {
+      if (email === DEV_CREDENTIALS.email && password === DEV_CREDENTIALS.password) {
+        const user: AdminUser = {
+          id: "dev-admin-1",
+          email: email,
+          name: "Admin User",
+        }
+        localStorage.setItem("admin_token", "dev-token-123")
+        localStorage.setItem("admin_user", JSON.stringify(user))
+        return user
+      }
+      return null
+    }
+
+    // Production mode - use Spring Boot backend
     try {
       const response = await fetch(API_ENDPOINTS.auth.login, {
         method: "POST",
