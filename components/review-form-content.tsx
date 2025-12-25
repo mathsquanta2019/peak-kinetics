@@ -212,7 +212,15 @@ export default function ReviewFormContent() {
 
             {/* Footer Note */}
             <p className="text-center text-sm text-muted-foreground">
-              By submitting this review, you agree to our privacy policy and terms of service.
+              By submitting this review, you agree to our{" "}
+              <Link href="/privacy-policy" className="text-primary hover:underline font-medium">
+                privacy policy
+              </Link>{" "}
+              and{" "}
+              <Link href="/terms-of-service" className="text-primary hover:underline font-medium">
+                terms of service
+              </Link>
+              .
             </p>
           </form>
         </Card>
