@@ -1,7 +1,6 @@
 "use client"
 
 import { API_ENDPOINTS } from "./api-config"
-import { mockDB } from "./mock-data/mock-db"
 
 export interface AdminUser {
   id: string
@@ -19,34 +18,8 @@ interface RegisterData {
   password: string
 }
 
-const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true"
-
-console.log("[v0] DEV_MODE:", DEV_MODE, "env value:", process.env.NEXT_PUBLIC_DEV_MODE)
-
 export const adminAuth = {
   login: async (email: string, password: string): Promise<AdminUser | null> => {
-    if (DEV_MODE) {
-      const admin = mockDB.admins.authenticate(email, password)
-      if (admin) {
-        const user: AdminUser = {
-          id: admin.id,
-          email: admin.email,
-          name: admin.name,
-          role: admin.role,
-          lastLogin: admin.lastLogin,
-        }
-        if (typeof window !== "undefined") {
-          localStorage.setItem("admin_token", `dev-token-${admin.id}`)
-          localStorage.setItem("admin_user", JSON.stringify(user))
-        }
-        // Update last login for next time
-        mockDB.admins.updateLastLogin(admin.id)
-        return user
-      }
-      return null
-    }
-
-    // Production mode - use Spring Boot backend
     try {
       const response = await fetch(API_ENDPOINTS.auth.login, {
         method: "POST",
@@ -69,16 +42,7 @@ export const adminAuth = {
     }
   },
 
-  // Adding register functionality
   register: async (data: RegisterData): Promise<boolean> => {
-    console.log("[v0] Register called, DEV_MODE:", DEV_MODE)
-
-    if (DEV_MODE) {
-      const result = mockDB.admins.register(data)
-      console.log("[v0] Register result:", result)
-      return result
-    }
-
     try {
       const response = await fetch(API_ENDPOINTS.auth.register, {
         method: "POST",
@@ -93,17 +57,7 @@ export const adminAuth = {
     }
   },
 
-  // Adding forgot password functionality
   requestPasswordReset: async (email: string): Promise<boolean> => {
-    console.log("[v0] requestPasswordReset called, DEV_MODE:", DEV_MODE, "email:", email)
-
-    if (DEV_MODE) {
-      // In dev mode, just simulate success
-      const admin = mockDB.admins.findByEmail(email)
-      console.log("[v0] Found admin:", !!admin)
-      return !!admin
-    }
-
     try {
       const response = await fetch(API_ENDPOINTS.auth.forgotPassword, {
         method: "POST",
@@ -118,13 +72,7 @@ export const adminAuth = {
     }
   },
 
-  // Adding reset password functionality
   resetPassword: async (token: string, newPassword: string): Promise<boolean> => {
-    if (DEV_MODE) {
-      // In dev mode, just simulate success
-      return true
-    }
-
     try {
       const response = await fetch(API_ENDPOINTS.auth.resetPassword, {
         method: "POST",

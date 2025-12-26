@@ -3,7 +3,8 @@
 import { Card } from "@/components/ui/card"
 import { MessageSquare, Star, FileText, TrendingUp } from "lucide-react"
 import Link from "next/link"
-import { mockDB } from "@/lib/mock-data/mock-db"
+import { API_ENDPOINTS } from "@/lib/api-config"
+import { adminAuth } from "@/lib/admin-auth"
 import { useEffect, useState } from "react"
 
 export default function AdminDashboard() {
@@ -15,16 +16,35 @@ export default function AdminDashboard() {
   })
 
   useEffect(() => {
-    const messages = mockDB.messages.getAll()
-    const reviews = mockDB.reviews.getAll()
-    const unread = messages.filter((m) => !m.read).length
+    const fetchStats = async () => {
+      try {
+        const token = adminAuth.getToken()
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
-    setStats({
-      messages: messages.length,
-      reviews: reviews.length,
-      blogPosts: 12,
-      unreadMessages: unread,
-    })
+        const [messagesRes, reviewsRes, blogsRes] = await Promise.all([
+          fetch(API_ENDPOINTS.messages.list, { headers }),
+          fetch(API_ENDPOINTS.reviews.list, { headers }),
+          fetch(API_ENDPOINTS.blog.list, { headers }),
+        ])
+
+        const messages = messagesRes.ok ? await messagesRes.json() : []
+        const reviews = reviewsRes.ok ? await reviewsRes.json() : []
+        const blogs = blogsRes.ok ? await blogsRes.json() : []
+
+        const unread = messages.filter((m: { read: boolean }) => !m.read).length
+
+        setStats({
+          messages: messages.length,
+          reviews: reviews.length,
+          blogPosts: blogs.length,
+          unreadMessages: unread,
+        })
+      } catch (error) {
+        console.error("Failed to fetch stats:", error)
+      }
+    }
+
+    fetchStats()
   }, [])
 
   const statCards = [

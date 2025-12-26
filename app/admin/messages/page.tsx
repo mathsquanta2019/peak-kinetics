@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { mockDB } from "@/lib/mock-data/mock-db"
+import { API_ENDPOINTS } from "@/lib/api-config"
+import { adminAuth } from "@/lib/admin-auth"
 import { useState, useEffect } from "react"
 import { Search, Mail, MailOpen, Trash2, Calendar, User, Phone, MapPin } from "lucide-react"
 
@@ -33,8 +34,13 @@ export default function AdminMessagesPage() {
 
   const fetchMessages = async () => {
     try {
-      if (process.env.NEXT_PUBLIC_DEV_MODE !== "false") {
-        const data = mockDB.messages.getAll()
+      const token = adminAuth.getToken()
+      const response = await fetch(API_ENDPOINTS.messages.list, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (response.ok) {
+        const data = await response.json()
         setMessages(data)
       }
     } catch (error) {
@@ -46,9 +52,14 @@ export default function AdminMessagesPage() {
 
   const markAsRead = async (messageId: string) => {
     try {
-      if (process.env.NEXT_PUBLIC_DEV_MODE !== "false") {
-        mockDB.messages.markAsRead(messageId)
-        setMessages(mockDB.messages.getAll())
+      const token = adminAuth.getToken()
+      const response = await fetch(`${API_ENDPOINTS.messages.list}/${messageId}/read`, {
+        method: "PATCH",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (response.ok) {
+        setMessages(messages.map((msg) => (msg.id === messageId ? { ...msg, read: true } : msg)))
       }
     } catch (error) {
       console.error("Failed to mark message as read:", error)
@@ -59,9 +70,14 @@ export default function AdminMessagesPage() {
     if (!confirm("Are you sure you want to delete this message?")) return
 
     try {
-      if (process.env.NEXT_PUBLIC_DEV_MODE !== "false") {
-        mockDB.messages.delete(messageId)
-        setMessages(mockDB.messages.getAll())
+      const token = adminAuth.getToken()
+      const response = await fetch(`${API_ENDPOINTS.messages.list}/${messageId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (response.ok) {
+        setMessages(messages.filter((msg) => msg.id !== messageId))
         if (selectedMessage?.id === messageId) {
           setSelectedMessage(null)
         }
@@ -195,7 +211,7 @@ export default function AdminMessagesPage() {
                     </h3>
                     <div className="flex items-center gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-5 w-5" />
                         {new Date(selectedMessage.createdAt).toLocaleDateString("en-US", {
                           month: "long",
                           day: "numeric",

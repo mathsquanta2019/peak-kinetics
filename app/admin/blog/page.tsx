@@ -3,7 +3,8 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { mockDB } from "@/lib/mock-data/mock-db"
+import { API_ENDPOINTS } from "@/lib/api-config"
+import { adminAuth } from "@/lib/admin-auth"
 import { useState, useEffect } from "react"
 import { Plus, Edit2, Trash2, Eye, Calendar, Search, FileText } from "lucide-react"
 import Link from "next/link"
@@ -35,8 +36,15 @@ export default function AdminBlogPage() {
 
   const fetchPosts = async () => {
     try {
-      const mockPosts: BlogPost[] = mockDB.blogs?.getAll() || []
-      setPosts(mockPosts)
+      const token = adminAuth.getToken()
+      const response = await fetch(API_ENDPOINTS.blog.list, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setPosts(data)
+      }
     } catch (error) {
       console.error("Failed to fetch posts:", error)
     } finally {
@@ -53,8 +61,18 @@ export default function AdminBlogPage() {
     if (!confirm("Are you sure you want to delete this blog post?")) return
 
     try {
-      setPosts(posts.filter((post) => post.id !== postId))
-      showNotification("success", "Blog post deleted successfully")
+      const token = adminAuth.getToken()
+      const response = await fetch(`${API_ENDPOINTS.blog.delete}/${postId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (response.ok) {
+        setPosts(posts.filter((post) => post.id !== postId))
+        showNotification("success", "Blog post deleted successfully")
+      } else {
+        showNotification("error", "Failed to delete blog post")
+      }
     } catch (error) {
       showNotification("error", "An error occurred")
     }

@@ -1,10 +1,10 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect } from "react"
 
 import { useState } from "react"
-
-import type React from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dialog"
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { adminAuth } from "@/lib/admin-auth"
-import { mockDB } from "@/lib/mock-data/mock-db"
 import { Upload, Send, FileText, ArrowUpDown, MoreVertical, Eye, Trash2 } from "lucide-react"
 import {
   useReactTable,
@@ -76,9 +75,16 @@ export default function AdminReviewsPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
-  const fetchReviews = () => {
-    const loadedReviews = mockDB.reviews.getAll()
-    setReviews(loadedReviews)
+  const fetchReviews = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.reviews.list)
+      if (response.ok) {
+        const data = await response.json()
+        setReviews(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch reviews:", error)
+    }
   }
 
   useEffect(() => {
@@ -235,38 +241,28 @@ export default function AdminReviewsPage() {
     setSendLoading(true)
 
     try {
-      if (process.env.NEXT_PUBLIC_DEV_MODE !== "false") {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+      const token = adminAuth.getToken()
+      const response = await fetch(API_ENDPOINTS.reviews.sendRequest, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: clientName,
+          email: clientEmail,
+          phone: clientPhone,
+        }),
+      })
+
+      if (response.ok) {
         showNotification("success", `Review request sent to ${clientName} successfully!`)
         setClientName("")
         setClientEmail("")
         setClientPhone("")
         setDialogOpen(false)
       } else {
-        const token = adminAuth.getToken()
-        const response = await fetch(API_ENDPOINTS.reviews.sendRequest, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            clientName,
-            email: clientEmail,
-            phone: clientPhone,
-            message,
-          }),
-        })
-
-        if (response.ok) {
-          showNotification("success", "Review request sent successfully!")
-          setClientName("")
-          setClientEmail("")
-          setClientPhone("")
-          setDialogOpen(false)
-        } else {
-          showNotification("error", "Failed to send review request")
-        }
+        showNotification("error", "Failed to send review request")
       }
     } catch (error) {
       showNotification("error", "An error occurred while sending the request")
@@ -275,77 +271,57 @@ export default function AdminReviewsPage() {
     }
   }
 
-  const handleImportCSV = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!csvFile) {
-      showNotification("error", "Please select a CSV file")
-      return
-    }
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    setImportLoading(true)
+    setCsvFile(file)
 
     try {
-      const text = await csvFile.text()
-      const lines = text.split("\n")
-      const headers = lines[0].split(",").map((h) => h.trim())
+      const formData = new FormData()
+      formData.append("file", file)
 
-      let importedCount = 0
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",")
-        if (values.length < headers.length) continue
+      const token = adminAuth.getToken()
+      const response = await fetch(API_ENDPOINTS.reviews.import, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      })
 
-        const firstName = values[headers.indexOf("Patient First Name")]?.trim()
-        const lastName = values[headers.indexOf("Patient Last Name")]?.trim()
-        const comments = values[headers.indexOf("Comments")]?.trim()
-        const completionDate = values[headers.indexOf("Survey Completion Date")]?.trim()
-        const clinicNPS = values[headers.indexOf("Clinic NPS")]?.trim()
-
-        if (firstName && lastName && comments) {
-          mockDB.reviews.create({
-            name: `${firstName} ${lastName}`,
-            rating: clinicNPS ? Math.min(5, Math.max(1, Math.ceil(Number.parseInt(clinicNPS) / 2))) : 5,
-            text: comments,
-            fullText: comments,
-            date: completionDate || new Date().toLocaleDateString(),
-            treatment: "Physical Therapy",
-            role: "Patient",
-            image: "/happy-patient-headshot.jpg",
-          })
-          importedCount++
-        }
+      if (response.ok) {
+        const result = await response.json()
+        fetchReviews()
+        showNotification("success", `Successfully imported ${result.count} reviews`)
+        setCsvFile(null)
+      } else {
+        showNotification("error", "Failed to import reviews")
       }
-
-      fetchReviews()
-      showNotification("success", `Successfully imported ${importedCount} reviews`)
-      setCsvFile(null)
-      const fileInput = document.getElementById("csv-file") as HTMLInputElement
-      if (fileInput) fileInput.value = ""
     } catch (error) {
-      showNotification("error", "An error occurred during import. Please check CSV format.")
-    } finally {
-      setImportLoading(false)
+      showNotification("error", "An error occurred during import")
     }
   }
 
   const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm("Are you sure you want to delete this review?")) return
+
     try {
-      if (process.env.NEXT_PUBLIC_DEV_MODE === "true") {
-        mockDB.deleteReview(reviewId)
+      const token = adminAuth.getToken()
+      const response = await fetch(`${API_ENDPOINTS.reviews.list}/${reviewId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (response.ok) {
         fetchReviews()
         setNotification({ type: "success", message: "Review deleted successfully" })
       } else {
-        const response = await fetch(`${API_ENDPOINTS.REVIEWS}/${reviewId}`, {
-          method: "DELETE",
-        })
-        if (response.ok) {
-          fetchReviews()
-          setNotification({ type: "success", message: "Review deleted successfully" })
-        } else {
-          throw new Error("Failed to delete review")
-        }
+        throw new Error("Failed to delete review")
       }
     } catch (error) {
       setNotification({ type: "error", message: "Failed to delete review" })
+    } finally {
+      setTimeout(() => setNotification(null), 3000)
+      setViewDialogOpen(false)
     }
   }
 
@@ -503,7 +479,7 @@ export default function AdminReviewsPage() {
         {activeTab === "import" && (
           <div className="space-y-6">
             <Card className="p-6">
-              <form onSubmit={handleImportCSV} className="space-y-6">
+              <form className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload CSV File</h3>
                   <div className="space-y-4">
@@ -515,20 +491,13 @@ export default function AdminReviewsPage() {
                       >
                         {csvFile ? csvFile.name : "Click to select a CSV file or drag and drop"}
                       </Label>
-                      <Input
-                        id="csv-file"
-                        type="file"
-                        accept=".csv"
-                        onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                        className="hidden"
-                      />
+                      <Input id="csv-file" type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
                       <p className="text-xs text-gray-500 mt-2">CSV files only</p>
                     </div>
                   </div>
                 </div>
 
-                <Button type="submit" disabled={importLoading || !csvFile} className="bg-sky-600 hover:bg-sky-700">
-                  <Upload className="h-4 w-4 mr-2" />
+                <Button type="button" disabled={importLoading || !csvFile} className="bg-sky-600 hover:bg-sky-700">
                   {importLoading ? "Importing..." : "Import Reviews"}
                 </Button>
               </form>
