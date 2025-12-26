@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // For Spring Boot bundling, use regular Next.js build (standalone mode)
+  output: 'export',
   
   trailingSlash: true,
 
@@ -13,11 +13,8 @@ const nextConfig = {
   },
 
   images: {
-    unoptimized: true,
+    unoptimized: true, // required for static export
   },
-
-  // This ensures Next.js assets are served from the correct path when bundled
-  assetPrefix: process.env.NODE_ENV === 'production' ? '' : undefined,
 }
 
 export default nextConfig

@@ -182,7 +182,7 @@ export default function AdminBlogPage() {
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link href={`/admin/blog/edit/${post.id}`}>
+                      <Link href={`/admin/blog/edit?id=${post.id}`}>
                         <Button size="sm" variant="ghost" title="Edit post">
                           <Edit2 className="h-4 w-4" />
                         </Button>
