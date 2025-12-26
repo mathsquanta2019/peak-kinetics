@@ -4,19 +4,19 @@ export const API_ENDPOINTS = {
   reviews: {
     list: `${API_BASE_URL}/reviews`,
     create: `${API_BASE_URL}/reviews`,
-    import: `${API_BASE_URL}/admin/reviews/import`,
-    sendRequest: `${API_BASE_URL}/admin/reviews/send-request`,
+    import: `${API_BASE_URL}/reviews/admin/import`,
+    sendRequest: `${API_BASE_URL}/reviews/admin/send-request`,
   },
   messages: {
     create: `${API_BASE_URL}/messages`,
-    list: `${API_BASE_URL}/admin/messages`,
+    list: `${API_BASE_URL}/messages/admin`,
   },
   blog: {
     list: `${API_BASE_URL}/blog`,
-    create: `${API_BASE_URL}/admin/blog`,
-    update: `${API_BASE_URL}/admin/blog`,
-    delete: `${API_BASE_URL}/admin/blog`,
-    upload: `${API_BASE_URL}/admin/blog/upload`,
+    create: `${API_BASE_URL}/blog/admin`,
+    update: `${API_BASE_URL}/blog/admin`,
+    delete: `${API_BASE_URL}/blog/admin`,
+    upload: `${API_BASE_URL}/blog/admin/upload`,
   },
   auth: {
     login: `${API_BASE_URL}/admin/auth/login`,
