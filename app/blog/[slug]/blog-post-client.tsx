@@ -9,7 +9,6 @@ import { useState, useEffect } from "react"
 import { Calendar, Clock, ArrowLeft, Share2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { use } from "react"
 
 interface BlogPost {
   id: string
@@ -23,8 +22,7 @@ interface BlogPost {
   tags: string[]
 }
 
-export default function BlogPostClient({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params)
+export default function BlogPostClient({ slug }: { slug: string }) {
   const [post, setPost] = useState<BlogPost | null>(null)
   const [loading, setLoading] = useState(true)
 

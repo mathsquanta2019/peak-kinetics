@@ -1,16 +1,23 @@
+import { Suspense } from "react"
 import BlogPostClient from "./blog-post-client"
 
 export async function generateStaticParams() {
-  // In a real application, you would fetch your blog post slugs from an API or database
-  // For demonstration purposes, we'll return an empty array, meaning posts will be rendered on-demand.
-  // If you had slugs, it would look something like:
-  // const posts = await fetch('YOUR_API_ENDPOINT_FOR_SLUGS').then(res => res.json());
-  // return posts.map((post: { slug: string }) => ({ slug: post.slug }));
-  return []
+  // For static export, we need to return at least one param
+  // In development, return empty to allow dynamic rendering
+  // In production build, you can fetch from your mock data or return a default
+  if (process.env.NODE_ENV === "development") {
+    return []
+  }
+
+  // Return a default blog post slug for static generation
+  // The actual posts will be fetched from Spring Boot API at runtime
+  return [{ slug: "welcome-to-peak-kinetics" }]
 }
 
-export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
-  // The params are passed as a Promise because they are resolved on the server
-  // BlogPostClient will handle the promise resolution.
-  return <BlogPostClient params={params} />
+export default function BlogPostPage({ params }: { params: { slug: string } }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <BlogPostClient slug={params.slug} />
+    </Suspense>
+  )
 }
