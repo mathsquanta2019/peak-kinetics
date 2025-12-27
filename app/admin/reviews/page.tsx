@@ -24,7 +24,6 @@ import { Upload, Send, FileText, ArrowUpDown, MoreVertical, Eye, Trash2 } from "
 import {
   useReactTable,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   getFilteredRowModel,
   flexRender,
@@ -54,6 +53,8 @@ export default function AdminReviewsPage(): ReactElement {
   const [activeTab, setActiveTab] = useState<"view" | "import">("view")
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [totalReviews, setTotalReviews] = useState(0)
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState("")
@@ -75,14 +76,17 @@ export default function AdminReviewsPage(): ReactElement {
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
-  const fetchReviews = async () => {
+  const fetchReviews = async (page = 0, pageSize = 20) => {
     try {
       console.log("[v0] Fetching reviews from:", API_ENDPOINTS.reviews.list)
-      const response = await fetch(API_ENDPOINTS.reviews.list, { credentials: "include" })
+      const response = await fetch(`${API_ENDPOINTS.reviews.list}?page=${page}&size=${pageSize}`, {
+        credentials: "include",
+      })
       if (response.ok) {
         const data = await response.json()
         console.log("[v0] Reviews response:", data)
         setReviews(data.data || [])
+        setTotalReviews(data.total || 0)
       }
     } catch (error) {
       console.error("[v0] Error fetching reviews:", error)
@@ -90,8 +94,8 @@ export default function AdminReviewsPage(): ReactElement {
   }
 
   useEffect(() => {
-    fetchReviews()
-  }, [])
+    fetchReviews(pagination.pageIndex, pagination.pageSize)
+  }, [pagination.pageIndex, pagination.pageSize])
 
   const showNotification = (type: "success" | "error", message: string) => {
     setNotification({ type, message })
@@ -222,20 +226,23 @@ export default function AdminReviewsPage(): ReactElement {
   const table = useReactTable({
     data: reviews,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    onRowSelectionChange: setRowSelection,
+    pageCount: Math.ceil(totalReviews / pagination.pageSize),
     state: {
       sorting,
       columnFilters,
       globalFilter,
       rowSelection,
+      pagination,
     },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    onRowSelectionChange: setRowSelection,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    manualPagination: true,
   })
 
   const handleSendRequest = async (e: React.FormEvent) => {
@@ -452,12 +459,8 @@ export default function AdminReviewsPage(): ReactElement {
 
               <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
                 <div className="text-sm text-gray-700">
-                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-                  {Math.min(
-                    (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                    table.getFilteredRowModel().rows.length,
-                  )}{" "}
-                  of {table.getFilteredRowModel().rows.length} reviews
+                  Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
+                  {Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalReviews)} of {totalReviews} reviews
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -469,7 +472,7 @@ export default function AdminReviewsPage(): ReactElement {
                     Previous
                   </Button>
                   <span className="text-sm text-gray-600">
-                    Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                    Page {pagination.pageIndex + 1} of {table.getPageCount()}
                   </span>
                   <Button
                     variant="outline"
