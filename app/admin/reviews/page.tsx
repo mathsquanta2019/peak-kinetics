@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-import * as XLSX from "xlsx"
-
+import React from "react"
 import { useEffect } from "react"
 
 import { useState } from "react"
@@ -72,6 +70,7 @@ export default function AdminReviewsPage() {
 
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
@@ -276,28 +275,34 @@ export default function AdminReviewsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validate file type
+    const validTypes = [
+      "text/csv",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ]
+    const fileExtension = file.name.split(".").pop()?.toLowerCase()
+
+    if (!validTypes.includes(file.type) && !["csv", "xlsx", "xls"].includes(fileExtension || "")) {
+      showNotification("error", "Please upload a CSV or XLSX file")
+      return
+    }
+
     setUploadFile(file)
     setImportLoading(true)
 
     try {
-      // Parse file based on type
-      const reviews = await parseFile(file)
+      // Send raw file to backend
+      const formData = new FormData()
+      formData.append("file", file)
 
-      if (reviews.length === 0) {
-        showNotification("error", "No valid reviews found in file")
-        setImportLoading(false)
-        return
-      }
-
-      // Send parsed reviews to API
       const token = adminAuth.getToken()
       const response = await fetch(API_ENDPOINTS.reviews.import, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ reviews }),
+        body: formData,
       })
 
       if (response.ok) {
@@ -305,81 +310,19 @@ export default function AdminReviewsPage() {
         fetchReviews()
         showNotification("success", `Successfully imported ${result.count} reviews`)
         setUploadFile(null)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
       } else {
-        showNotification("error", "Failed to import reviews")
+        const error = await response.json()
+        showNotification("error", error.message || "Failed to import reviews")
       }
     } catch (error) {
-      console.error("[v0] Error importing file:", error)
+      console.error("Error importing file:", error)
       showNotification("error", "An error occurred during import")
     } finally {
       setImportLoading(false)
     }
-  }
-
-  const parseFile = async (file: File): Promise<any[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result
-          let workbook: XLSX.WorkBook
-
-          if (file.name.endsWith(".csv")) {
-            // Parse CSV
-            workbook = XLSX.read(data, { type: "binary" })
-          } else {
-            // Parse XLSX/XLS
-            workbook = XLSX.read(data, { type: "array" })
-          }
-
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 })
-
-          // Find header row and extract data
-          const headers = jsonData[0] as string[]
-          const rows = jsonData.slice(1) as any[][]
-
-          // Map column names to indices
-          const firstNameIdx = headers.findIndex((h) => h?.toLowerCase().includes("first name"))
-          const lastNameIdx = headers.findIndex((h) => h?.toLowerCase().includes("last name"))
-          const commentsIdx = headers.findIndex((h) => h?.toLowerCase().includes("comments"))
-          const npsIdx = headers.findIndex(
-            (h) => h?.toLowerCase().includes("clinic nps") || h?.toLowerCase().includes("provider nps"),
-          )
-          const completionDateIdx = headers.findIndex(
-            (h) => h?.toLowerCase().includes("completion date") || h?.toLowerCase().includes("survey completion"),
-          )
-
-          // Extract reviews
-          const reviews = rows
-            .filter((row) => row[commentsIdx] && row[commentsIdx].trim())
-            .map((row) => {
-              const firstName = row[firstNameIdx] || ""
-              const lastName = row[lastNameIdx] || ""
-              const name = `${firstName} ${lastName}`.trim() || "Anonymous"
-              const text = row[commentsIdx] || ""
-              const npsScore = Number.parseInt(row[npsIdx]) || 0
-              const rating = Math.min(5, Math.max(1, Math.ceil(npsScore / 2)))
-              const date = row[completionDateIdx] || new Date().toISOString().split("T")[0]
-
-              return { name, rating, text, date }
-            })
-
-          resolve(reviews)
-        } catch (error) {
-          reject(error)
-        }
-      }
-
-      reader.onerror = () => reject(reader.error)
-
-      if (file.name.endsWith(".csv")) {
-        reader.readAsBinaryString(file)
-      } else {
-        reader.readAsArrayBuffer(file)
-      }
-    })
   }
 
   const handleDeleteReview = async (reviewId: string) => {
@@ -578,6 +521,7 @@ export default function AdminReviewsPage() {
                         accept=".csv,.xlsx,.xls"
                         onChange={handleFileUpload}
                         className="hidden"
+                        ref={fileInputRef}
                       />
                       <p className="text-xs text-gray-500 mt-2">CSV or XLSX files only</p>
                     </div>
