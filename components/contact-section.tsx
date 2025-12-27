@@ -96,12 +96,23 @@ export function ContactSection() {
 
     setIsSubmitting(true)
     try {
+      const requestData = {
+        firstName: formData.firstName.trim() || null,
+        lastName: formData.lastName.trim() || null,
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || null,
+        address: formData.address.trim() || null,
+        message: formData.message.trim(),
+      }
+
+      console.log("[v0] Sending message with data:", requestData)
+
       const response = await fetch(API_ENDPOINTS.messages.create, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestData),
       })
 
       const result = await response.json()

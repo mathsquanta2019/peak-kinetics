@@ -1,10 +1,9 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { MessageSquare, Star, FileText, TrendingUp } from "lucide-react"
+import { MessageSquare, Star, FileText } from "lucide-react"
 import Link from "next/link"
 import { API_ENDPOINTS } from "@/lib/api-config"
-import { adminAuth } from "@/lib/admin-auth"
 import { useEffect, useState } from "react"
 
 export default function AdminDashboard() {
@@ -14,6 +13,7 @@ export default function AdminDashboard() {
     blogPosts: 0,
     unreadMessages: 0,
   })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -24,20 +24,28 @@ export default function AdminDashboard() {
           fetch(API_ENDPOINTS.blog.list, { credentials: "include" }),
         ])
 
-        const messages = messagesRes.ok ? await messagesRes.json() : []
-        const reviews = reviewsRes.ok ? await reviewsRes.json() : []
-        const blogs = blogsRes.ok ? await blogsRes.json() : []
+        const messagesData = messagesRes.ok ? await messagesRes.json() : { data: [] }
+        const reviewsData = reviewsRes.ok ? await reviewsRes.json() : { data: [], total: 0 }
+        const blogsData = blogsRes.ok ? await blogsRes.json() : { data: [] }
+
+        console.log("[v0] Dashboard stats:", { messagesData, reviewsData, blogsData })
+
+        const messages = Array.isArray(messagesData) ? messagesData : messagesData.data || []
+        const reviews = reviewsData.total || reviewsData.data?.length || 0
+        const blogs = Array.isArray(blogsData) ? blogsData : blogsData.data || []
 
         const unread = messages.filter((m: { read: boolean }) => !m.read).length
 
         setStats({
           messages: messages.length,
-          reviews: reviews.length,
+          reviews: reviews,
           blogPosts: blogs.length,
           unreadMessages: unread,
         })
       } catch (error) {
         console.error("Failed to fetch stats:", error)
+      } finally {
+        setLoading(false)
       }
     }
 
@@ -47,7 +55,7 @@ export default function AdminDashboard() {
   const statCards = [
     {
       label: "Total Messages",
-      value: stats.messages.toString(),
+      value: loading ? "..." : stats.messages.toString(),
       subtext: `${stats.unreadMessages} unread`,
       icon: MessageSquare,
       color: "text-blue-600",
@@ -56,7 +64,7 @@ export default function AdminDashboard() {
     },
     {
       label: "Reviews",
-      value: stats.reviews.toString(),
+      value: loading ? "..." : stats.reviews.toString(),
       subtext: "Patient feedback",
       icon: Star,
       color: "text-yellow-600",
@@ -65,21 +73,12 @@ export default function AdminDashboard() {
     },
     {
       label: "Blog Posts",
-      value: stats.blogPosts.toString(),
+      value: loading ? "..." : stats.blogPosts.toString(),
       subtext: "Published articles",
       icon: FileText,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
       href: "/admin/blog",
-    },
-    {
-      label: "Growth",
-      value: "+23%",
-      subtext: "This month",
-      icon: TrendingUp,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
-      href: "#",
     },
   ]
 
