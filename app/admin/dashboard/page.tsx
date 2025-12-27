@@ -18,13 +18,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = adminAuth.getToken()
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
-
         const [messagesRes, reviewsRes, blogsRes] = await Promise.all([
-          fetch(API_ENDPOINTS.messages.list, { headers }),
-          fetch(API_ENDPOINTS.reviews.list, { headers }),
-          fetch(API_ENDPOINTS.blog.list, { headers }),
+          fetch(API_ENDPOINTS.messages.list, { credentials: "include" }),
+          fetch(API_ENDPOINTS.reviews.list, { credentials: "include" }),
+          fetch(API_ENDPOINTS.blog.list, { credentials: "include" }),
         ])
 
         const messages = messagesRes.ok ? await messagesRes.json() : []
