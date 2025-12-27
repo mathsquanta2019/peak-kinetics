@@ -354,10 +354,10 @@ Authorization: Bearer {token}  // For protected routes
 }
 ```
 
-### 2.6 Import Reviews from CSV (Admin)
+### 2.6 Import Reviews from CSV/XLSX (Admin)
 **Endpoint:** `POST /admin/reviews/import`
 
-**Description:** Imports reviews from a CSV file with healthcare survey data.
+**Description:** Imports reviews from a CSV or XLSX file with healthcare survey data. Supports both formats.
 
 **Headers:** 
 ```
@@ -367,21 +367,227 @@ Content-Type: multipart/form-data
 
 **Request Body (FormData):**
 ```
-file: [CSV File]
+file: [CSV or XLSX File]
 ```
 
-**CSV Format Expected:**
-The CSV should have these headers (Healthcare Survey Export):
+**Supported File Types:**
+- `.csv` - Comma-separated values
+- `.xlsx` - Excel 2007+ format  
+- `.xls` - Excel 97-2003 format
+
+**File Format Expected:**
+The file should have these headers (Healthcare Survey Export):
 - Patient First Name
-- Patient Last Name
+- Patient Last Name  
 - Comments
 - Survey Completion Date
+- Clinic NPS (optional - used for rating calculation)
+- Response (optional)
 
 **The backend should extract:**
 - `Patient First Name` + `Patient Last Name` → `name`
 - `Comments` → `text`
 - `Survey Completion Date` → `date`
-- Default rating to 5 stars (or parse from NPS if available)
+- `Clinic NPS` → converted to 1-5 star rating (0-6=1 star, 7=2 stars, 8=3 stars, 9=4 stars, 10=5 stars)
+- If NPS not available, use `Response` field or default to 5 stars
+
+**Java Implementation Example:**
+
+```java
+// Add dependencies to pom.xml:
+// <dependency>
+//     <groupId>org.apache.poi</groupId>
+//     <artifactId>poi-ooxml</artifactId>
+//     <version>5.2.3</version>
+// </dependency>
+// <dependency>
+//     <groupId>org.apache.commons</groupId>
+//     <artifactId>commons-csv</artifactId>
+//     <version>1.10.0</version>
+// </dependency>
+
+@PostMapping("/admin/reviews/import")
+public ResponseEntity<?> importReviews(
+    @RequestParam("file") MultipartFile file,
+    @RequestHeader("Authorization") String authHeader
+) {
+    try {
+        String filename = file.getOriginalFilename();
+        List<Review> reviews = new ArrayList<>();
+        
+        if (filename.endsWith(".csv")) {
+            reviews = parseCsvFile(file);
+        } else if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
+            reviews = parseExcelFile(file);
+        } else {
+            return ResponseEntity.badRequest()
+                .body(Map.of("error", "Unsupported file format. Please upload CSV or XLSX files."));
+        }
+        
+        int imported = 0;
+        int skipped = 0;
+        List<Map<String, Object>> errors = new ArrayList<>();
+        
+        for (Review review : reviews) {
+            if (isValidReview(review)) {
+                reviewRepository.save(review);
+                imported++;
+            } else {
+                skipped++;
+                errors.add(Map.of(
+                    "row", review.getRowNumber(),
+                    "reason", "Missing required fields"
+                ));
+            }
+        }
+        
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Successfully imported " + imported + " reviews",
+            "imported", imported,
+            "skipped", skipped,
+            "errors", errors
+        ));
+    } catch (Exception e) {
+        return ResponseEntity.status(500)
+            .body(Map.of("error", "Failed to process file: " + e.getMessage()));
+    }
+}
+
+private List<Review> parseCsvFile(MultipartFile file) throws IOException {
+    List<Review> reviews = new ArrayList<>();
+    
+    try (Reader reader = new InputStreamReader(file.getInputStream());
+         CSVParser csvParser = new CSVParser(reader, 
+             CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim())) {
+        
+        for (CSVRecord record : csvParser) {
+            Review review = new Review();
+            
+            String firstName = record.get("Patient First Name");
+            String lastName = record.get("Patient Last Name");
+            review.setName(firstName + " " + lastName);
+            review.setText(record.get("Comments"));
+            review.setDate(parseDate(record.get("Survey Completion Date")));
+            review.setRating(calculateRatingFromNPS(record.get("Clinic NPS")));
+            review.setRowNumber(csvParser.getCurrentLineNumber());
+            
+            reviews.add(review);
+        }
+    }
+    
+    return reviews;
+}
+
+private List<Review> parseExcelFile(MultipartFile file) throws IOException {
+    List<Review> reviews = new ArrayList<>();
+    
+    try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+        Sheet sheet = workbook.getSheetAt(0);
+        
+        // Get header row
+        Row headerRow = sheet.getRow(0);
+        Map<String, Integer> columnIndexes = new HashMap<>();
+        
+        for (Cell cell : headerRow) {
+            columnIndexes.put(cell.getStringCellValue(), cell.getColumnIndex());
+        }
+        
+        // Process data rows
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+            
+            Review review = new Review();
+            
+            String firstName = getCellValue(row, columnIndexes.get("Patient First Name"));
+            String lastName = getCellValue(row, columnIndexes.get("Patient Last Name"));
+            review.setName(firstName + " " + lastName);
+            review.setText(getCellValue(row, columnIndexes.get("Comments")));
+            review.setDate(parseDate(getCellValue(row, columnIndexes.get("Survey Completion Date"))));
+            review.setRating(calculateRatingFromNPS(getCellValue(row, columnIndexes.get("Clinic NPS"))));
+            review.setRowNumber(i + 1);
+            
+            reviews.add(review);
+        }
+    }
+    
+    return reviews;
+}
+
+private String getCellValue(Row row, Integer columnIndex) {
+    if (columnIndex == null) return "";
+    
+    Cell cell = row.getCell(columnIndex);
+    if (cell == null) return "";
+    
+    switch (cell.getCellType()) {
+        case STRING:
+            return cell.getStringCellValue();
+        case NUMERIC:
+            if (DateUtil.isCellDateFormatted(cell)) {
+                return cell.getDateCellValue().toString();
+            }
+            return String.valueOf((int) cell.getNumericCellValue());
+        case BOOLEAN:
+            return String.valueOf(cell.getBooleanCellValue());
+        default:
+            return "";
+    }
+}
+
+private int calculateRatingFromNPS(String npsValue) {
+    if (npsValue == null || npsValue.trim().isEmpty()) {
+        return 5; // Default to 5 stars
+    }
+    
+    try {
+        int nps = Integer.parseInt(npsValue.trim());
+        
+        // Convert NPS (0-10) to star rating (1-5)
+        if (nps <= 6) return 1;
+        if (nps == 7) return 2;
+        if (nps == 8) return 3;
+        if (nps == 9) return 4;
+        return 5; // nps == 10
+        
+    } catch (NumberFormatException e) {
+        return 5; // Default to 5 stars if parsing fails
+    }
+}
+
+private LocalDate parseDate(String dateString) {
+    if (dateString == null || dateString.trim().isEmpty()) {
+        return LocalDate.now();
+    }
+    
+    try {
+        // Try multiple date formats
+        DateTimeFormatter[] formatters = {
+            DateTimeFormatter.ofPattern("M/d/yyyy"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            DateTimeFormatter.ISO_DATE
+        };
+        
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                return LocalDate.parse(dateString.trim(), formatter);
+            } catch (DateTimeParseException e) {
+                // Try next formatter
+            }
+        }
+    } catch (Exception e) {
+        // Fall through to default
+    }
+    
+    return LocalDate.now();
+}
+
+private boolean isValidReview(Review review) {
+    return review.getName() != null && !review.getName().trim().isEmpty()
+        && review.getText() != null && !review.getText().trim().isEmpty();
+}
+```
 
 **Response (200 OK):**
 ```json
@@ -396,6 +602,14 @@ The CSV should have these headers (Healthcare Survey Export):
       "reason": "Missing required fields (name or comments)"
     }
   ]
+}
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Unsupported file format. Please upload CSV or XLSX files."
 }
 ```
 
@@ -1334,6 +1548,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreatedDate;
 import org.hibernate.annotations.UpdatedDate;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -1367,6 +1582,14 @@ public class Review {
     @Size(min = 20, max = 1000, message = "Review must be between 20 and 1000 characters")
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
+
+    // Added for CSV/XLSX import
+    @Column(name = "date")
+    private LocalDate date;
+
+    // Added for CSV/XLSX import, not part of DB schema but used during processing
+    @Transient
+    private int rowNumber;
     
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

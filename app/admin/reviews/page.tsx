@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { adminAuth } from "@/lib/admin-auth"
-import { Upload, Send, FileText, ArrowUpDown, MoreVertical, Eye, Trash2 } from "lucide-react"
+import { Upload, Search, ChevronDown, Eye, Trash2, FileText } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -69,7 +69,7 @@ export default function AdminReviewsPage() {
   )
   const [sendLoading, setSendLoading] = useState(false)
 
-  const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
 
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
@@ -128,7 +128,7 @@ export default function AdminReviewsPage() {
             className="hover:bg-gray-100 -ml-4"
           >
             Patient Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
+            <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
         )
       },
@@ -144,7 +144,7 @@ export default function AdminReviewsPage() {
             className="hover:bg-gray-100 -ml-4"
           >
             Rating
-            <ArrowUpDown className="ml-2 h-4 w-4" />
+            <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
         )
       },
@@ -173,7 +173,7 @@ export default function AdminReviewsPage() {
             className="hover:bg-gray-100 -ml-4"
           >
             Date
-            <ArrowUpDown className="ml-2 h-4 w-4" />
+            <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
         )
       },
@@ -192,7 +192,7 @@ export default function AdminReviewsPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
                 <span className="sr-only">Open menu</span>
-                <MoreVertical className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -271,11 +271,11 @@ export default function AdminReviewsPage() {
     }
   }
 
-  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setCsvFile(file)
+    setUploadFile(file)
 
     try {
       const formData = new FormData()
@@ -292,7 +292,7 @@ export default function AdminReviewsPage() {
         const result = await response.json()
         fetchReviews()
         showNotification("success", `Successfully imported ${result.count} reviews`)
-        setCsvFile(null)
+        setUploadFile(null)
       } else {
         showNotification("error", "Failed to import reviews")
       }
@@ -352,7 +352,7 @@ export default function AdminReviewsPage() {
             <p className="text-gray-600">Manage reviews and send requests to clients</p>
           </div>
           <Button onClick={() => setDialogOpen(true)} className="bg-sky-600 hover:bg-sky-700">
-            <Send className="h-4 w-4 mr-2" />
+            <Search className="h-4 w-4 mr-2" />
             Send Review Request
           </Button>
         </div>
@@ -380,7 +380,7 @@ export default function AdminReviewsPage() {
             >
               <div className="flex items-center gap-2">
                 <Upload className="h-4 w-4" />
-                Import CSV
+                Import CSV/XLSX
               </div>
             </button>
           </div>
@@ -481,23 +481,29 @@ export default function AdminReviewsPage() {
             <Card className="p-6">
               <form className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload CSV File</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload CSV or XLSX File</h3>
                   <div className="space-y-4">
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-sky-400 transition-colors">
                       <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <Label
-                        htmlFor="csv-file"
+                        htmlFor="file-upload"
                         className="text-sm text-gray-600 mb-2 block cursor-pointer hover:text-sky-600"
                       >
-                        {csvFile ? csvFile.name : "Click to select a CSV file or drag and drop"}
+                        {uploadFile ? uploadFile.name : "Click to select a CSV or XLSX file or drag and drop"}
                       </Label>
-                      <Input id="csv-file" type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
-                      <p className="text-xs text-gray-500 mt-2">CSV files only</p>
+                      <Input
+                        id="file-upload"
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">CSV or XLSX files only</p>
                     </div>
                   </div>
                 </div>
 
-                <Button type="button" disabled={importLoading || !csvFile} className="bg-sky-600 hover:bg-sky-700">
+                <Button type="button" disabled={importLoading || !uploadFile} className="bg-sky-600 hover:bg-sky-700">
                   {importLoading ? "Importing..." : "Import Reviews"}
                 </Button>
               </form>
@@ -507,9 +513,9 @@ export default function AdminReviewsPage() {
               <div className="flex gap-4">
                 <FileText className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
                 <div>
-                  <h4 className="font-semibold text-blue-900 mb-2">Healthcare CSV Format</h4>
+                  <h4 className="font-semibold text-blue-900 mb-2">Healthcare CSV/XLSX Format</h4>
                   <p className="text-sm text-blue-800 mb-3">
-                    Your CSV file should contain the following headers (system will extract Name, Comments, and Date):
+                    Your file should contain the following headers (system will extract Name, Comments, and Date):
                   </p>
                   <div className="text-xs text-blue-800 space-y-1 font-mono bg-white/50 p-3 rounded">
                     <p>Patient Account Number, Patient First Name, Patient Last Name, Case Title,</p>
