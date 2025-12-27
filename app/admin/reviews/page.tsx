@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { LoaderCircle } from "lucide-react"
 
 import type { ReactElement } from "react"
 import { useEffect, useState } from "react"
@@ -295,7 +296,7 @@ export default function AdminReviewsPage(): ReactElement {
 
       if (response.ok) {
         const result = await response.json()
-        fetchReviews()
+        await fetchReviews()
         showNotification("success", `Successfully imported ${result.count} reviews`)
         e.target.value = "" // Reset file input
       } else {
@@ -507,7 +508,12 @@ export default function AdminReviewsPage(): ReactElement {
                         className="hidden"
                       />
                       <p className="text-xs text-gray-500 mt-2">CSV or XLSX files only</p>
-                      {importLoading && <p className="text-sm text-sky-600 mt-4 font-medium">Importing...</p>}
+                      {importLoading && (
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                          <LoaderCircle className="h-5 w-5 text-sky-600 animate-spin" />
+                          <p className="text-sm text-sky-600 font-medium">Importing reviews...</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
