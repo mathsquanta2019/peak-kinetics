@@ -77,13 +77,15 @@ export default function AdminReviewsPage(): ReactElement {
 
   const fetchReviews = async () => {
     try {
+      console.log("[v0] Fetching reviews from:", API_ENDPOINTS.reviews.list)
       const response = await fetch(API_ENDPOINTS.reviews.list, { credentials: "include" })
       if (response.ok) {
         const data = await response.json()
-        setReviews(data)
+        console.log("[v0] Reviews response:", data)
+        setReviews(data.data || [])
       }
     } catch (error) {
-      console.error("Failed to fetch reviews:", error)
+      console.error("[v0] Error fetching reviews:", error)
     }
   }
 
