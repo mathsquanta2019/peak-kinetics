@@ -1,9 +1,9 @@
 "use client"
 
 import React from "react"
-import { useEffect } from "react"
 
-import { useState } from "react"
+import type { ReactElement } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,8 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { API_ENDPOINTS } from "@/lib/api-config"
-import { adminAuth } from "@/lib/admin-auth"
-import { Upload, Search, ChevronDown, Eye, Trash2, FileText } from "lucide-react"
+import { Upload, Send, FileText, ArrowUpDown, MoreVertical, Eye, Trash2 } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -50,7 +49,7 @@ interface Review {
   treatment?: string
 }
 
-export default function AdminReviewsPage() {
+export default function AdminReviewsPage(): ReactElement {
   const [activeTab, setActiveTab] = useState<"view" | "import">("view")
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
@@ -70,14 +69,14 @@ export default function AdminReviewsPage() {
 
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
-  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const fileInputRef = React.createRef<HTMLInputElement>()
 
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
   const fetchReviews = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.reviews.list)
+      const response = await fetch(API_ENDPOINTS.reviews.list, { credentials: "include" })
       if (response.ok) {
         const data = await response.json()
         setReviews(data)
@@ -128,7 +127,7 @@ export default function AdminReviewsPage() {
             className="hover:bg-gray-100 -ml-4"
           >
             Patient Name
-            <ChevronDown className="ml-2 h-4 w-4" />
+            <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         )
       },
@@ -144,7 +143,7 @@ export default function AdminReviewsPage() {
             className="hover:bg-gray-100 -ml-4"
           >
             Rating
-            <ChevronDown className="ml-2 h-4 w-4" />
+            <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         )
       },
@@ -173,7 +172,7 @@ export default function AdminReviewsPage() {
             className="hover:bg-gray-100 -ml-4"
           >
             Date
-            <ChevronDown className="ml-2 h-4 w-4" />
+            <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         )
       },
@@ -192,7 +191,7 @@ export default function AdminReviewsPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
                 <span className="sr-only">Open menu</span>
-                <ChevronDown className="h-4 w-4" />
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -241,17 +240,16 @@ export default function AdminReviewsPage() {
     setSendLoading(true)
 
     try {
-      const token = adminAuth.getToken()
       const response = await fetch(API_ENDPOINTS.reviews.sendRequest, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           name: clientName,
           email: clientEmail,
-          phone: clientPhone,
+          ...(clientPhone && { phone: clientPhone }),
         }),
       })
 
@@ -271,37 +269,27 @@ export default function AdminReviewsPage() {
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
-    const validTypes = [
-      "text/csv",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ]
+    // Validate file extension
     const fileExtension = file.name.split(".").pop()?.toLowerCase()
-
-    if (!validTypes.includes(file.type) && !["csv", "xlsx", "xls"].includes(fileExtension || "")) {
+    if (!["csv", "xlsx", "xls"].includes(fileExtension || "")) {
       showNotification("error", "Please upload a CSV or XLSX file")
+      e.target.value = "" // Reset file input
       return
     }
 
-    setUploadFile(file)
     setImportLoading(true)
 
     try {
-      // Send raw file to backend
       const formData = new FormData()
       formData.append("file", file)
 
-      const token = adminAuth.getToken()
       const response = await fetch(API_ENDPOINTS.reviews.import, {
         method: "POST",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: "include",
         body: formData,
       })
 
@@ -309,16 +297,12 @@ export default function AdminReviewsPage() {
         const result = await response.json()
         fetchReviews()
         showNotification("success", `Successfully imported ${result.count} reviews`)
-        setUploadFile(null)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ""
-        }
+        e.target.value = "" // Reset file input
       } else {
-        const error = await response.json()
+        const error = await response.json().catch(() => ({ message: "Failed to import reviews" }))
         showNotification("error", error.message || "Failed to import reviews")
       }
     } catch (error) {
-      console.error("Error importing file:", error)
       showNotification("error", "An error occurred during import")
     } finally {
       setImportLoading(false)
@@ -329,10 +313,9 @@ export default function AdminReviewsPage() {
     if (!confirm("Are you sure you want to delete this review?")) return
 
     try {
-      const token = adminAuth.getToken()
       const response = await fetch(`${API_ENDPOINTS.reviews.list}/${reviewId}`, {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
       })
 
       if (response.ok) {
@@ -376,7 +359,7 @@ export default function AdminReviewsPage() {
             <p className="text-gray-600">Manage reviews and send requests to clients</p>
           </div>
           <Button onClick={() => setDialogOpen(true)} className="bg-sky-600 hover:bg-sky-700">
-            <Search className="h-4 w-4 mr-2" />
+            <Send className="h-4 w-4 mr-2" />
             Send Review Request
           </Button>
         </div>
@@ -404,7 +387,7 @@ export default function AdminReviewsPage() {
             >
               <div className="flex items-center gap-2">
                 <Upload className="h-4 w-4" />
-                Import CSV/XLSX
+                Import Reviews
               </div>
             </button>
           </div>
@@ -499,44 +482,36 @@ export default function AdminReviewsPage() {
           </div>
         )}
 
-        {/* Import CSV Tab */}
+        {/* Import Tab */}
         {activeTab === "import" && (
           <div className="space-y-6">
             <Card className="p-6">
-              <form className="space-y-6">
+              <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload CSV or XLSX File</h3>
                   <div className="space-y-4">
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-sky-400 transition-colors">
                       <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <Label
-                        htmlFor="file-upload"
+                        htmlFor="csv-file"
                         className="text-sm text-gray-600 mb-2 block cursor-pointer hover:text-sky-600"
                       >
-                        {uploadFile ? uploadFile.name : "Click to select a CSV or XLSX file or drag and drop"}
+                        Click to select a CSV or XLSX file or drag and drop
                       </Label>
                       <Input
-                        id="file-upload"
+                        id="csv-file"
                         type="file"
                         accept=".csv,.xlsx,.xls"
-                        onChange={handleFileUpload}
+                        onChange={handleCsvUpload}
+                        disabled={importLoading}
                         className="hidden"
-                        ref={fileInputRef}
                       />
                       <p className="text-xs text-gray-500 mt-2">CSV or XLSX files only</p>
+                      {importLoading && <p className="text-sm text-sky-600 mt-4 font-medium">Importing...</p>}
                     </div>
                   </div>
                 </div>
-
-                <Button
-                  type="button"
-                  onClick={() => document.getElementById("file-upload")?.click()}
-                  disabled={importLoading}
-                  className="bg-sky-600 hover:bg-sky-700"
-                >
-                  {importLoading ? "Importing..." : uploadFile ? "Upload Another File" : "Select File to Import"}
-                </Button>
-              </form>
+              </div>
             </Card>
 
             <Card className="p-6 bg-blue-50 border-blue-200">
