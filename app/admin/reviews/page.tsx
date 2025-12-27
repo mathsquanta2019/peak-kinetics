@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import * as XLSX from "xlsx"
 
 import { useEffect } from "react"
 
@@ -276,16 +277,27 @@ export default function AdminReviewsPage() {
     if (!file) return
 
     setUploadFile(file)
+    setImportLoading(true)
 
     try {
-      const formData = new FormData()
-      formData.append("file", file)
+      // Parse file based on type
+      const reviews = await parseFile(file)
 
+      if (reviews.length === 0) {
+        showNotification("error", "No valid reviews found in file")
+        setImportLoading(false)
+        return
+      }
+
+      // Send parsed reviews to API
       const token = adminAuth.getToken()
       const response = await fetch(API_ENDPOINTS.reviews.import, {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reviews }),
       })
 
       if (response.ok) {
@@ -297,8 +309,77 @@ export default function AdminReviewsPage() {
         showNotification("error", "Failed to import reviews")
       }
     } catch (error) {
+      console.error("[v0] Error importing file:", error)
       showNotification("error", "An error occurred during import")
+    } finally {
+      setImportLoading(false)
     }
+  }
+
+  const parseFile = async (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result
+          let workbook: XLSX.WorkBook
+
+          if (file.name.endsWith(".csv")) {
+            // Parse CSV
+            workbook = XLSX.read(data, { type: "binary" })
+          } else {
+            // Parse XLSX/XLS
+            workbook = XLSX.read(data, { type: "array" })
+          }
+
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 })
+
+          // Find header row and extract data
+          const headers = jsonData[0] as string[]
+          const rows = jsonData.slice(1) as any[][]
+
+          // Map column names to indices
+          const firstNameIdx = headers.findIndex((h) => h?.toLowerCase().includes("first name"))
+          const lastNameIdx = headers.findIndex((h) => h?.toLowerCase().includes("last name"))
+          const commentsIdx = headers.findIndex((h) => h?.toLowerCase().includes("comments"))
+          const npsIdx = headers.findIndex(
+            (h) => h?.toLowerCase().includes("clinic nps") || h?.toLowerCase().includes("provider nps"),
+          )
+          const completionDateIdx = headers.findIndex(
+            (h) => h?.toLowerCase().includes("completion date") || h?.toLowerCase().includes("survey completion"),
+          )
+
+          // Extract reviews
+          const reviews = rows
+            .filter((row) => row[commentsIdx] && row[commentsIdx].trim())
+            .map((row) => {
+              const firstName = row[firstNameIdx] || ""
+              const lastName = row[lastNameIdx] || ""
+              const name = `${firstName} ${lastName}`.trim() || "Anonymous"
+              const text = row[commentsIdx] || ""
+              const npsScore = Number.parseInt(row[npsIdx]) || 0
+              const rating = Math.min(5, Math.max(1, Math.ceil(npsScore / 2)))
+              const date = row[completionDateIdx] || new Date().toISOString().split("T")[0]
+
+              return { name, rating, text, date }
+            })
+
+          resolve(reviews)
+        } catch (error) {
+          reject(error)
+        }
+      }
+
+      reader.onerror = () => reject(reader.error)
+
+      if (file.name.endsWith(".csv")) {
+        reader.readAsBinaryString(file)
+      } else {
+        reader.readAsArrayBuffer(file)
+      }
+    })
   }
 
   const handleDeleteReview = async (reviewId: string) => {
@@ -503,8 +584,13 @@ export default function AdminReviewsPage() {
                   </div>
                 </div>
 
-                <Button type="button" disabled={importLoading || !uploadFile} className="bg-sky-600 hover:bg-sky-700">
-                  {importLoading ? "Importing..." : "Import Reviews"}
+                <Button
+                  type="button"
+                  onClick={() => document.getElementById("file-upload")?.click()}
+                  disabled={importLoading}
+                  className="bg-sky-600 hover:bg-sky-700"
+                >
+                  {importLoading ? "Importing..." : uploadFile ? "Upload Another File" : "Select File to Import"}
                 </Button>
               </form>
             </Card>
