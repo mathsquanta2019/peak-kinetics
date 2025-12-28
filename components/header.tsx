@@ -152,15 +152,6 @@ export function Header() {
 
             {/* Desktop CTA Section */}
             <div className="hidden lg:flex items-center gap-6">
-              <Link
-                href="/admin"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-primary/5 transition-all duration-300 whitespace-nowrap group"
-              >
-                <Shield className="h-5 w-5 text-primary flex-shrink-0" />
-                <span className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                  Admin
-                </span>
-              </Link>
               <a
                 href="tel:737-368-2653"
                 className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-primary/5 transition-all duration-300 whitespace-nowrap"
@@ -171,6 +162,13 @@ export function Header() {
                   <p className="text-xs text-muted-foreground">24/7</p>
                 </div>
               </a>
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/15 transition-all duration-300 whitespace-nowrap group border border-primary/20"
+              >
+                <Shield className="h-4 w-4 text-primary flex-shrink-0" />
+                <span className="text-sm font-semibold text-primary transition-colors">Admin</span>
+              </Link>
               <Button className="cta-button px-8 py-2.5 flex-shrink-0" onClick={handleBookAppointment}>
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule Appointment
