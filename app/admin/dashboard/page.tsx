@@ -18,23 +18,23 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [threadsRes, reviewsRes, blogsRes] = await Promise.all([
+        const [statsRes, reviewsRes, blogsRes] = await Promise.all([
           fetch(API_ENDPOINTS.messages.statistics, { credentials: "include" }),
           fetch(`${API_ENDPOINTS.reviews.list}?page=0&pageSize=1`, { credentials: "include" }),
           fetch(`${API_ENDPOINTS.blog.list}?page=0&pageSize=1`, { credentials: "include" }),
         ])
 
-        const threadsData = threadsRes.ok ? await threadsRes.json() : { totalThreads: 0, unreadThreads: 0 }
+        const statsData = statsRes.ok ? await statsRes.json() : null
         const reviewsData = reviewsRes.ok ? await reviewsRes.json() : { data: [], total: 0 }
         const blogsData = blogsRes.ok ? await blogsRes.json() : { data: [], total: 0 }
 
-        console.log("[v0] Dashboard API responses:", { threadsData, reviewsData, blogsData })
+        console.log("[v0] Dashboard API responses:", { statsData, reviewsData, blogsData })
 
         setStats({
-          messages: threadsData.totalThreads || 0,
+          messages: statsData?.totalThreads || 0,
           reviews: reviewsData.total || 0,
           blogPosts: blogsData.total || 0,
-          unreadMessages: threadsData.unreadThreads || 0,
+          unreadMessages: statsData?.unreadThreads || 0,
         })
       } catch (error) {
         console.error("[v0] Failed to fetch stats:", error)
