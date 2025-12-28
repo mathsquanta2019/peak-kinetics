@@ -60,7 +60,7 @@ export default function AdminMessages() {
 
   const markAsRead = async (id: number) => {
     try {
-      const response = await fetch(`API_ENDPOINTS.messages.markAsRead/${id}/read`, {
+      const response = await fetch(`${API_ENDPOINTS.messages.markAsRead}/${id}/read`, {
         method: "PUT",
         credentials: "include",
       })
