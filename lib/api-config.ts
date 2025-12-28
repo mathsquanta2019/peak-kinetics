@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
   messages: {
     create: `${API_BASE_URL}/messages`,
     list: `${API_BASE_URL}/messages/admin`,
+    markAsRead: `${API_BASE_URL}/messages/admin`,
   },
   blog: {
     list: `${API_BASE_URL}/blog`,
@@ -25,5 +26,6 @@ export const API_ENDPOINTS = {
     register: `${API_BASE_URL}/admin/auth/register`,
     forgotPassword: `${API_BASE_URL}/admin/auth/forgot-password`,
     resetPassword: `${API_BASE_URL}/admin/auth/reset-password`,
+    user: `${API_BASE_URL}/admin/auth/me`,
   },
 } as const
