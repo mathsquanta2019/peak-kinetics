@@ -34,7 +34,7 @@ export function ReviewsSection() {
         if (result.success && result.data) {
           const backendReviews = result.data.map((review: any) => ({
             id: review.id.toString(),
-            name: review.patientName,
+            name: review.patientName.split(" ")[0],
             role: "Patient",
             image: "/patient-consultation.png",
             rating: review.rating,
@@ -165,19 +165,9 @@ export function ReviewsSection() {
                   <p className="text-muted-foreground mb-6 leading-relaxed flex-1 text-balance">"{review.text}"</p>
 
                   {/* Author Info */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <img
-                      src={review.image || "/placeholder.svg"}
-                      alt={review.name}
-                      className="w-12 h-12 rounded-full object-cover bg-muted"
-                      onError={(e) => {
-                        e.currentTarget.src = "/placeholder.svg"
-                      }}
-                    />
-                    <div>
-                      <div className="font-semibold text-foreground">{review.name}</div>
-                      <div className="text-sm text-muted-foreground">{review.role}</div>
-                    </div>
+                  <div className="mb-4">
+                    <div className="font-semibold text-foreground">{review.name}</div>
+                    <div className="text-sm text-muted-foreground">{review.role}</div>
                   </div>
 
                   {/* Date and Treatment */}
