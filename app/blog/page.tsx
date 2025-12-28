@@ -15,7 +15,10 @@ interface BlogPost {
   slug: string
   excerpt: string
   featuredImage?: string
-  author: string
+  author: {
+    id: number
+    name: string
+  }
   publishedAt: string
   tags: string[]
   content: string
@@ -148,7 +151,7 @@ export default function BlogPage() {
                         <div className="flex items-center gap-6 text-sm text-gray-500">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-sky-500" />
-                            <span className="font-medium">{post.author}</span>
+                            <span className="font-medium">{post.author.name}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-sky-500" />

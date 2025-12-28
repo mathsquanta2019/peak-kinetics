@@ -30,7 +30,13 @@ export function ReviewsSection() {
     const fetchReviews = async () => {
       try {
         const response = await fetch(`${API_ENDPOINTS.reviews.list}?page=0&pageSize=20`)
+        if (!response.ok) {
+          console.error("[v0] Failed to fetch reviews. Status:", response.status)
+          setLoading(false)
+          return
+        }
         const result = await response.json()
+        console.log("[v0] Reviews API response:", result)
         if (result.success && result.data) {
           const backendReviews = result.data.map((review: any) => ({
             id: review.id.toString(),
