@@ -148,6 +148,11 @@ export default function AdminMessages() {
   const handleSendReply = async () => {
     if (!selectedThread || !replyText.trim()) return
 
+    if (replyText.trim().length < 10) {
+      alert("Reply must be at least 10 characters long.")
+      return
+    }
+
     try {
       setSendingReply(true)
       const response = await fetch(API_ENDPOINTS.messages.reply(selectedThread.threadId), {
@@ -158,6 +163,7 @@ export default function AdminMessages() {
         credentials: "include",
         body: JSON.stringify({
           parentMessageId: selectedThread.originalMessage.id,
+          email: selectedThread.originalMessage.email,
           message: replyText.trim(),
         }),
       })
