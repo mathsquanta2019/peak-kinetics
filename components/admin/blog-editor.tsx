@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { API_ENDPOINTS } from "@/lib/api-config"
-import { adminAuth } from "@/lib/admin-auth"
 import { ArrowLeft, Save, Eye, Upload, X } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -52,11 +51,8 @@ export function BlogEditor({ postId }: BlogEditorProps) {
 
   const fetchPost = async () => {
     try {
-      const token = adminAuth.getToken()
       const response = await fetch(`${API_ENDPOINTS.blog.list}/${postId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       })
 
       if (response.ok) {
@@ -96,15 +92,12 @@ export function BlogEditor({ postId }: BlogEditorProps) {
     if (!imageFile) return featuredImage
 
     try {
-      const token = adminAuth.getToken()
       const formData = new FormData()
       formData.append("image", imageFile)
 
       const response = await fetch(API_ENDPOINTS.blog.upload, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
         body: formData,
       })
 
@@ -133,7 +126,6 @@ export function BlogEditor({ postId }: BlogEditorProps) {
         if (url) uploadedImageUrl = url
       }
 
-      const token = adminAuth.getToken()
       const postData = {
         title,
         slug,
@@ -147,17 +139,15 @@ export function BlogEditor({ postId }: BlogEditorProps) {
           .filter((tag) => tag),
       }
 
-      // For create: POST /api/blog/admin/{authorId}
-      // For update: PUT /api/blog/admin/blog/{postId}
-      const url = postId ? API_ENDPOINTS.blog.update(Number(postId)) : API_ENDPOINTS.blog.create(1) // TODO: Get actual authorId from auth
+      const url = postId ? API_ENDPOINTS.blog.update(Number(postId)) : API_ENDPOINTS.blog.create(1)
       const method = postId ? "PUT" : "POST"
 
       const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify(postData),
       })
 
