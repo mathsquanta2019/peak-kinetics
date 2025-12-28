@@ -13,6 +13,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+
+import { Textarea } from "@/components/ui/textarea"
+import { Search, Mail, MailOpen, ReplyIcon, Loader2, Trash2 } from "lucide-react"
+import { API_ENDPOINTS } from "@/lib/api-config"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Search, Mail, MailOpen, ReplyIcon, Loader2, Trash2 } from "lucide-react"
-import { API_ENDPOINTS } from "@/lib/api-config"
 
 interface MessageReply {
   id: number
@@ -184,9 +185,9 @@ export default function AdminMessages() {
 
   const filteredMessages = messages.filter((message) => {
     const matchesSearch =
-      `${message.firstName} ${message.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.message.toLowerCase().includes(searchTerm.toLowerCase())
+        `${message.firstName} ${message.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        message.message.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesFilter = filter === "all" || (filter === "unread" && !message.read)
 
@@ -202,309 +203,310 @@ export default function AdminMessages() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
-      </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
+        </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Messages</h2>
-          <p className="text-sm text-gray-600 mt-1">{unreadCount} unread messages</p>
-        </div>
-        <Button onClick={fetchMessages} variant="outline">
-          <Search className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 p-4">
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search messages..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant={filter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter("all")}
-                className="flex-1"
-              >
-                All
-              </Button>
-              <Button
-                variant={filter === "unread" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter("unread")}
-                className="flex-1"
-              >
-                Unread
-              </Button>
-            </div>
-
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {filteredMessages.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No messages found</p>
-              ) : (
-                filteredMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    onClick={() => handleSelectMessage(message)}
-                    className={`p-4 rounded-lg cursor-pointer transition-colors ${
-                      selectedMessage?.id === message.id
-                        ? "bg-sky-50 border-2 border-sky-200"
-                        : message.read
-                          ? "bg-gray-50 hover:bg-gray-100"
-                          : "bg-white border-2 border-sky-100 hover:border-sky-200"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {message.read ? (
-                          <MailOpen className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <Mail className="h-4 w-4 text-sky-600" />
-                        )}
-                        <p className="font-semibold text-sm">
-                          {message.firstName} {message.lastName}
-                        </p>
-                      </div>
-                      {!message.read && <Badge className="bg-sky-600">New</Badge>}
-                    </div>
-                    <p className="text-xs text-gray-600 mb-2">{message.email}</p>
-                    <p className="text-sm text-gray-700 line-clamp-2">{message.message}</p>
-                    <p className="text-xs text-gray-500 mt-2">{new Date(message.createdAt).toLocaleDateString()}</p>
-                  </div>
-                ))
-              )}
-            </div>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Messages</h2>
+            <p className="text-sm text-gray-600 mt-1">{unreadCount} unread messages</p>
           </div>
-        </Card>
+          <Button onClick={fetchMessages} variant="outline">
+            <Search className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
 
-        <Card className="lg:col-span-2 p-6">
-          {selectedMessage ? (
-            <div className="space-y-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-sky-100 text-sky-600 p-3 rounded-full">
-                    <Mail className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      {selectedMessage.firstName} {selectedMessage.lastName}
-                    </h3>
-                    <p className="text-sm text-gray-600">{selectedMessage.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {selectedMessage.read ? (
-                    <Badge variant="secondary">Read</Badge>
-                  ) : (
-                    <Badge className="bg-sky-600">Unread</Badge>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setMessageToDelete(selectedMessage.id)
-                      setDeleteDialogOpen(true)
-                    }}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                  <Button onClick={() => setReplyDialogOpen(true)} className="bg-sky-600 hover:bg-sky-700">
-                    <ReplyIcon className="h-4 w-4 mr-2" />
-                    Reply
-                  </Button>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-1 p-4">
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                    placeholder="Search messages..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                />
               </div>
 
-              <div className="border-t pt-4">
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  {selectedMessage.phone && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Phone</p>
-                      <p className="text-sm text-gray-900">{selectedMessage.phone}</p>
-                    </div>
-                  )}
-                  {selectedMessage.address && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Address</p>
-                      <p className="text-sm text-gray-900">{selectedMessage.address}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Received</p>
-                    <p className="text-sm text-gray-900">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
-                  </div>
-                </div>
+              <div className="flex gap-2">
+                <Button
+                    variant={filter === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilter("all")}
+                    className="flex-1"
+                >
+                  All
+                </Button>
+                <Button
+                    variant={filter === "unread" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilter("unread")}
+                    className="flex-1"
+                >
+                  Unread
+                </Button>
+              </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500 mb-2">Conversation</p>
-
-                    <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-medium text-gray-600">
-                          {selectedMessage.firstName} {selectedMessage.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.message}</p>
-                    </div>
-
-                    {selectedMessage.replies && selectedMessage.replies.length > 0 && (
-                      <div className="space-y-3">
-                        {selectedMessage.replies.map((reply) => (
-                          <div
-                            key={reply.id}
-                            className={`p-4 rounded-lg border-l-4 ${
-                              reply.isAdmin ? "bg-sky-50 border-sky-500" : "bg-gray-50 border-gray-300"
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {filteredMessages.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No messages found</p>
+                ) : (
+                    filteredMessages.map((message) => (
+                        <div
+                            key={message.id}
+                            onClick={() => handleSelectMessage(message)}
+                            className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                                selectedMessage?.id === message.id
+                                    ? "bg-sky-50 border-2 border-sky-200"
+                                    : message.read
+                                        ? "bg-gray-50 hover:bg-gray-100"
+                                        : "bg-white border-2 border-sky-100 hover:border-sky-200"
                             }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="text-xs font-medium">
-                                {reply.isAdmin ? (
-                                  <span className="text-sky-700">Admin Reply</span>
-                                ) : (
-                                  <span className="text-gray-600">
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {message.read ? (
+                                  <MailOpen className="h-4 w-4 text-gray-400" />
+                              ) : (
+                                  <Mail className="h-4 w-4 text-sky-600" />
+                              )}
+                              <p className="font-semibold text-sm">
+                                {message.firstName} {message.lastName}
+                              </p>
+                            </div>
+                            {!message.read && <Badge className="bg-sky-600">New</Badge>}
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2">{message.email}</p>
+                          <p className="text-sm text-gray-700 line-clamp-2">{message.message}</p>
+                          <p className="text-xs text-gray-500 mt-2">{new Date(message.createdAt).toLocaleDateString()}</p>
+                        </div>
+                    ))
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card className="lg:col-span-2 p-6">
+            {selectedMessage ? (
+                <div className="space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-sky-100 text-sky-600 p-3 rounded-full">
+                        <Mail className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-900">
+                          {selectedMessage.firstName} {selectedMessage.lastName}
+                        </h3>
+                        <p className="text-sm text-gray-600">{selectedMessage.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedMessage.read ? (
+                          <Badge variant="secondary">Read</Badge>
+                      ) : (
+                          <Badge className="bg-sky-600">Unread</Badge>
+                      )}
+                      <Button
+                          variant="outline"
+                          onClick={() => {
+                            setMessageToDelete(selectedMessage.id)
+                            setDeleteDialogOpen(true)
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                      <Button onClick={() => setReplyDialogOpen(true)} className="bg-sky-600 hover:bg-sky-700">
+                        <ReplyIcon className="h-4 w-4 mr-2" />
+                        Reply
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      {selectedMessage.phone && (
+                          <div>
+                            <p className="text-sm font-medium text-gray-500">Phone</p>
+                            <p className="text-sm text-gray-900">{selectedMessage.phone}</p>
+                          </div>
+                      )}
+                      {selectedMessage.address && (
+                          <div>
+                            <p className="text-sm font-medium text-gray-500">Address</p>
+                            <p className="text-sm text-gray-900">{selectedMessage.address}</p>
+                          </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Received</p>
+                        <p className="text-sm text-gray-900">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 mb-2">Conversation</p>
+
+                        <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-medium text-gray-600">
+                              {selectedMessage.firstName} {selectedMessage.lastName}
+                            </p>
+                            <p className="text-xs text-gray-500">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
+                          </div>
+                          <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.message}</p>
+                        </div>
+
+                        {selectedMessage.replies && selectedMessage.replies.length > 0 && (
+                            <div className="space-y-3">
+                              {selectedMessage.replies.map((reply) => (
+                                  <div
+                                      key={reply.id}
+                                      className={`p-4 rounded-lg border-l-4 ${
+                                          reply.isAdmin ? "bg-sky-50 border-sky-500" : "bg-gray-50 border-gray-300"
+                                      }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-xs font-medium">
+                                        {reply.isAdmin ? (
+                                            <span className="text-sky-700">Admin Reply</span>
+                                        ) : (
+                                            <span className="text-gray-600">
                                     {selectedMessage.firstName} {selectedMessage.lastName}
                                   </span>
-                                )}
-                              </p>
-                              <p className="text-xs text-gray-500">{new Date(reply.createdAt).toLocaleString()}</p>
+                                        )}
+                                      </p>
+                                      <p className="text-xs text-gray-500">{new Date(reply.createdAt).toLocaleString()}</p>
+                                    </div>
+                                    <p
+                                        className={`whitespace-pre-wrap ${
+                                            reply.isAdmin ? "text-sky-900" : "text-gray-900"
+                                        }`}
+                                    >
+                                      {reply.reply}
+                                    </p>
+                                  </div>
+                              ))}
                             </div>
-                            <p
-                              className={reply.isAdmin ? "text-sky-900" : "text-gray-900"}
-                              className="whitespace-pre-wrap"
-                            >
-                              {reply.reply}
-                            </p>
-                          </div>
-                        ))}
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center py-12">
-              <div className="bg-gray-100 p-6 rounded-full mb-4">
-                <Mail className="h-12 w-12 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No message selected</h3>
-              <p className="text-gray-600">Select a message from the list to view its details</p>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Reply to Message</DialogTitle>
-            <DialogDescription>
-              {selectedMessage && (
-                <>
-                  Replying to {selectedMessage.firstName} {selectedMessage.lastName} ({selectedMessage.email})
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedMessage && (
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <p className="text-sm font-medium text-gray-500 mb-2">Original Message:</p>
-                <p className="text-sm text-gray-700">{selectedMessage.message}</p>
-              </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div className="bg-gray-100 p-6 rounded-full mb-4">
+                    <Mail className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No message selected</h3>
+                  <p className="text-gray-600">Select a message from the list to view its details</p>
+                </div>
             )}
-            <div>
-              <label htmlFor="reply" className="text-sm font-medium text-gray-700 mb-2 block">
-                Your Reply
-              </label>
-              <Textarea
-                id="reply"
-                placeholder="Type your reply here..."
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                rows={8}
-                className="resize-none"
-              />
-              <p className="text-xs text-gray-500 mt-2">Your reply will be sent to {selectedMessage?.email}</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setReplyDialogOpen(false)
-                setReplyText("")
-              }}
-              disabled={sendingReply}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSendReply}
-              disabled={!replyText.trim() || sendingReply}
-              className="bg-sky-600 hover:bg-sky-700"
-            >
-              {sendingReply ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <ReplyIcon className="h-4 w-4 mr-2" />
-                  Send Reply
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </Card>
+        </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Message</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this message? This action cannot be undone and will remove all
-              conversation history.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteMessage}
-              disabled={deleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
+        <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Reply to Message</DialogTitle>
+              <DialogDescription>
+                {selectedMessage && (
+                    <>
+                      Replying to {selectedMessage.firstName} {selectedMessage.lastName} ({selectedMessage.email})
+                    </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {selectedMessage && (
+                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <p className="text-sm font-medium text-gray-500 mb-2">Original Message:</p>
+                    <p className="text-sm text-gray-700">{selectedMessage.message}</p>
+                  </div>
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+              <div>
+                <label htmlFor="reply" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Your Reply
+                </label>
+                <Textarea
+                    id="reply"
+                    placeholder="Type your reply here..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    rows={8}
+                    className="resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">Your reply will be sent to {selectedMessage?.email}</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                  variant="outline"
+                  onClick={() => {
+                    setReplyDialogOpen(false)
+                    setReplyText("")
+                  }}
+                  disabled={sendingReply}
+              >
+                Cancel
+              </Button>
+              <Button
+                  onClick={handleSendReply}
+                  disabled={!replyText.trim() || sendingReply}
+                  className="bg-sky-600 hover:bg-sky-700"
+              >
+                {sendingReply ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                ) : (
+                    <>
+                      <ReplyIcon className="h-4 w-4 mr-2" />
+                      Send Reply
+                    </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Message</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this message? This action cannot be undone and will remove all
+                conversation history.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                  onClick={handleDeleteMessage}
+                  disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700"
+              >
+                {deleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                ) : (
+                    "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
   )
 }
