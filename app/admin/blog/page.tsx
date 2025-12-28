@@ -36,9 +36,8 @@ export default function AdminBlogPage() {
 
   const fetchPosts = async () => {
     try {
-      const token = adminAuth.getToken()
       const response = await fetch(API_ENDPOINTS.blog.list, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include"
       })
 
       if (response.ok) {
@@ -61,10 +60,9 @@ export default function AdminBlogPage() {
     if (!confirm("Are you sure you want to delete this blog post?")) return
 
     try {
-      const token = adminAuth.getToken()
       const response = await fetch(`${API_ENDPOINTS.blog.delete}/${postId}`, {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include"
       })
 
       if (response.ok) {
