@@ -18,16 +18,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Search, Mail, MailOpen, ReplyIcon, Loader2, Trash2 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/api-config"
 
-interface MessageReply {
+interface MessageResponse {
   id: number
-  messageId: number
-  reply: string
-  isAdmin: boolean
-  createdAt: string
-}
-
-interface Message {
-  id: number
+  threadId: number
+  parentMessageId: number | null
+  isReply: boolean
+  senderType: "CUSTOMER" | "ADMIN"
   firstName: string
   lastName: string
   email: string
@@ -36,12 +32,22 @@ interface Message {
   message: string
   read: boolean
   createdAt: string
-  replies?: MessageReply[]
+  updatedAt: string | null
+  replyCount?: number
+}
+
+interface ThreadResponse {
+  threadId: number
+  originalMessage: MessageResponse
+  replies: MessageResponse[]
+  totalMessages: number
+  lastActivityAt: string
+  hasUnreadMessages: boolean
 }
 
 export default function AdminMessages() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
+  const [threads, setThreads] = useState<ThreadResponse[]>([])
+  const [selectedThread, setSelectedThread] = useState<ThreadResponse | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [filter, setFilter] = useState<"all" | "unread">("all")
   const [loading, setLoading] = useState(true)
@@ -50,7 +56,7 @@ export default function AdminMessages() {
   const [replyText, setReplyText] = useState("")
   const [sendingReply, setSendingReply] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [messageToDelete, setMessageToDelete] = useState<number | null>(null)
+  const [threadToDelete, setThreadToDelete] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   const fetchMessages = async () => {
@@ -67,12 +73,12 @@ export default function AdminMessages() {
       const result = await response.json()
       console.log("[v0] Messages API response:", result)
 
-      const messagesData = result.data || []
-      setMessages(messagesData)
+      const threadsData = result.data || []
+      setThreads(threadsData)
       setUnreadCount(result.unread || 0)
     } catch (error) {
       console.error("[v0] Error fetching messages:", error)
-      setMessages([])
+      setThreads([])
     } finally {
       setLoading(false)
     }
@@ -82,18 +88,33 @@ export default function AdminMessages() {
     fetchMessages()
   }, [])
 
-  const markAsRead = async (id: number) => {
+  const markAsRead = async (messageId: number) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.messages.markAsRead}/${id}/read`, {
+      const response = await fetch(`${API_ENDPOINTS.messages.markAsRead}/${messageId}/read`, {
         method: "PUT",
         credentials: "include",
       })
 
       if (response.ok) {
-        setMessages((prev) => prev.map((msg) => (msg.id === id ? { ...msg, read: true } : msg)))
+        setThreads((prev) =>
+          prev.map((thread) => {
+            if (thread.originalMessage.id === messageId) {
+              return {
+                ...thread,
+                originalMessage: { ...thread.originalMessage, read: true },
+                hasUnreadMessages: false,
+              }
+            }
+            return thread
+          }),
+        )
         setUnreadCount((prev) => Math.max(0, prev - 1))
-        if (selectedMessage?.id === id) {
-          setSelectedMessage({ ...selectedMessage, read: true })
+        if (selectedThread?.originalMessage.id === messageId) {
+          setSelectedThread({
+            ...selectedThread,
+            originalMessage: { ...selectedThread.originalMessage, read: true },
+            hasUnreadMessages: false,
+          })
         }
       }
     } catch (error) {
@@ -102,20 +123,18 @@ export default function AdminMessages() {
   }
 
   const handleSendReply = async () => {
-    if (!selectedMessage || !replyText.trim()) return
+    if (!selectedThread || !replyText.trim()) return
 
     try {
       setSendingReply(true)
-      const response = await fetch(API_ENDPOINTS.messages.reply, {
+      const response = await fetch(API_ENDPOINTS.messages.reply(selectedThread.threadId), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
         body: JSON.stringify({
-          messageId: selectedMessage.id,
-          email: selectedMessage.email,
-          reply: replyText.trim(),
+          message: replyText.trim(),
         }),
       })
 
@@ -123,13 +142,12 @@ export default function AdminMessages() {
         throw new Error(`Failed to send reply: ${response.statusText}`)
       }
 
-      await fetchMessages()
+      const updatedThread: ThreadResponse = await response.json()
 
-      const updatedMessage = messages.find((m) => m.id === selectedMessage.id)
-      if (updatedMessage) {
-        setSelectedMessage(updatedMessage)
-      }
+      // Update threads list with new data
+      setThreads((prev) => prev.map((thread) => (thread.threadId === updatedThread.threadId ? updatedThread : thread)))
 
+      setSelectedThread(updatedThread)
       setReplyDialogOpen(false)
       setReplyText("")
 
@@ -142,52 +160,53 @@ export default function AdminMessages() {
     }
   }
 
-  const handleDeleteMessage = async () => {
-    if (!messageToDelete) return
+  const handleDeleteThread = async () => {
+    if (!threadToDelete) return
 
     try {
       setDeleting(true)
-      const response = await fetch(`${API_ENDPOINTS.messages.delete}/${messageToDelete}`, {
+      const response = await fetch(`${API_ENDPOINTS.messages.delete}/${threadToDelete}`, {
         method: "DELETE",
         credentials: "include",
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to delete message: ${response.statusText}`)
+        throw new Error(`Failed to delete message thread: ${response.statusText}`)
       }
 
-      setMessages((prev) => prev.filter((msg) => msg.id !== messageToDelete))
+      setThreads((prev) => prev.filter((thread) => thread.threadId !== threadToDelete))
 
-      if (selectedMessage?.id === messageToDelete) {
-        setSelectedMessage(null)
+      if (selectedThread?.threadId === threadToDelete) {
+        setSelectedThread(null)
       }
 
       setDeleteDialogOpen(false)
-      setMessageToDelete(null)
-      alert("Message deleted successfully!")
+      setThreadToDelete(null)
+      alert("Message thread deleted successfully!")
     } catch (error) {
       console.error("[v0] Error deleting message:", error)
-      alert("Failed to delete message. Please try again.")
+      alert("Failed to delete message thread. Please try again.")
     } finally {
       setDeleting(false)
     }
   }
 
-  const filteredMessages = messages.filter((message) => {
+  const filteredThreads = threads.filter((thread) => {
+    const msg = thread.originalMessage
     const matchesSearch =
-      `${message.firstName} ${message.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.message.toLowerCase().includes(searchTerm.toLowerCase())
+      `${msg.firstName} ${msg.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      msg.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      msg.message.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesFilter = filter === "all" || (filter === "unread" && !message.read)
+    const matchesFilter = filter === "all" || (filter === "unread" && thread.hasUnreadMessages)
 
     return matchesSearch && matchesFilter
   })
 
-  const handleSelectMessage = (message: Message) => {
-    setSelectedMessage(message)
-    if (!message.read) {
-      markAsRead(message.id)
+  const handleSelectThread = (thread: ThreadResponse) => {
+    setSelectedThread(thread)
+    if (!thread.originalMessage.read) {
+      markAsRead(thread.originalMessage.id)
     }
   }
 
@@ -244,46 +263,54 @@ export default function AdminMessages() {
             </div>
 
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {filteredMessages.length === 0 ? (
+              {filteredThreads.length === 0 ? (
                 <p className="text-center text-gray-500 py-8">No messages found</p>
               ) : (
-                filteredMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    onClick={() => handleSelectMessage(message)}
-                    className={`p-4 rounded-lg cursor-pointer transition-colors ${
-                      selectedMessage?.id === message.id
-                        ? "bg-sky-50 border-2 border-sky-200"
-                        : message.read
-                          ? "bg-gray-50 hover:bg-gray-100"
-                          : "bg-white border-2 border-sky-100 hover:border-sky-200"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {message.read ? (
-                          <MailOpen className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <Mail className="h-4 w-4 text-sky-600" />
-                        )}
-                        <p className="font-semibold text-sm">
-                          {message.firstName} {message.lastName}
-                        </p>
+                filteredThreads.map((thread) => {
+                  const msg = thread.originalMessage
+                  return (
+                    <div
+                      key={thread.threadId}
+                      onClick={() => handleSelectThread(thread)}
+                      className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                        selectedThread?.threadId === thread.threadId
+                          ? "bg-sky-50 border-2 border-sky-200"
+                          : msg.read
+                            ? "bg-gray-50 hover:bg-gray-100"
+                            : "bg-white border-2 border-sky-100 hover:border-sky-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {msg.read ? (
+                            <MailOpen className="h-4 w-4 text-gray-400" />
+                          ) : (
+                            <Mail className="h-4 w-4 text-sky-600" />
+                          )}
+                          <p className="font-semibold text-sm">
+                            {msg.firstName} {msg.lastName}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!msg.read && <Badge className="bg-sky-600">New</Badge>}
+                          {thread.totalMessages > 1 && <Badge variant="secondary">{thread.totalMessages}</Badge>}
+                        </div>
                       </div>
-                      {!message.read && <Badge className="bg-sky-600">New</Badge>}
+                      <p className="text-xs text-gray-600 mb-2">{msg.email}</p>
+                      <p className="text-sm text-gray-700 line-clamp-2">{msg.message}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {new Date(thread.lastActivityAt).toLocaleDateString()}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-600 mb-2">{message.email}</p>
-                    <p className="text-sm text-gray-700 line-clamp-2">{message.message}</p>
-                    <p className="text-xs text-gray-500 mt-2">{new Date(message.createdAt).toLocaleDateString()}</p>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
         </Card>
 
         <Card className="lg:col-span-2 p-6">
-          {selectedMessage ? (
+          {selectedThread ? (
             <div className="space-y-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -292,13 +319,16 @@ export default function AdminMessages() {
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-gray-900">
-                      {selectedMessage.firstName} {selectedMessage.lastName}
+                      {selectedThread.originalMessage.firstName} {selectedThread.originalMessage.lastName}
                     </h3>
-                    <p className="text-sm text-gray-600">{selectedMessage.email}</p>
+                    <p className="text-sm text-gray-600">{selectedThread.originalMessage.email}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Thread with {selectedThread.totalMessages} message{selectedThread.totalMessages !== 1 ? "s" : ""}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {selectedMessage.read ? (
+                  {selectedThread.originalMessage.read ? (
                     <Badge variant="secondary">Read</Badge>
                   ) : (
                     <Badge className="bg-sky-600">Unread</Badge>
@@ -306,7 +336,7 @@ export default function AdminMessages() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setMessageToDelete(selectedMessage.id)
+                      setThreadToDelete(selectedThread.threadId)
                       setDeleteDialogOpen(true)
                     }}
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -323,21 +353,23 @@ export default function AdminMessages() {
 
               <div className="border-t pt-4">
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  {selectedMessage.phone && (
+                  {selectedThread.originalMessage.phone && (
                     <div>
                       <p className="text-sm font-medium text-gray-500">Phone</p>
-                      <p className="text-sm text-gray-900">{selectedMessage.phone}</p>
+                      <p className="text-sm text-gray-900">{selectedThread.originalMessage.phone}</p>
                     </div>
                   )}
-                  {selectedMessage.address && (
+                  {selectedThread.originalMessage.address && (
                     <div>
                       <p className="text-sm font-medium text-gray-500">Address</p>
-                      <p className="text-sm text-gray-900">{selectedMessage.address}</p>
+                      <p className="text-sm text-gray-900">{selectedThread.originalMessage.address}</p>
                     </div>
                   )}
                   <div>
                     <p className="text-sm font-medium text-gray-500">Received</p>
-                    <p className="text-sm text-gray-900">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
+                    <p className="text-sm text-gray-900">
+                      {new Date(selectedThread.originalMessage.createdAt).toLocaleString()}
+                    </p>
                   </div>
                 </div>
 
@@ -348,36 +380,42 @@ export default function AdminMessages() {
                     <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-medium text-gray-600">
-                          {selectedMessage.firstName} {selectedMessage.lastName}
+                          {selectedThread.originalMessage.firstName} {selectedThread.originalMessage.lastName}
                         </p>
-                        <p className="text-xs text-gray-500">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(selectedThread.originalMessage.createdAt).toLocaleString()}
+                        </p>
                       </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.message}</p>
+                      <p className="text-gray-900 whitespace-pre-wrap">{selectedThread.originalMessage.message}</p>
                     </div>
 
-                    {selectedMessage.replies && selectedMessage.replies.length > 0 && (
+                    {selectedThread.replies.length > 0 && (
                       <div className="space-y-3">
-                        {selectedMessage.replies.map((reply) => (
+                        {selectedThread.replies.map((reply) => (
                           <div
                             key={reply.id}
                             className={`p-4 rounded-lg border-l-4 ${
-                              reply.isAdmin ? "bg-sky-50 border-sky-500" : "bg-gray-50 border-gray-300"
+                              reply.senderType === "ADMIN" ? "bg-sky-50 border-sky-500" : "bg-gray-50 border-gray-300"
                             }`}
                           >
                             <div className="flex items-center justify-between mb-2">
                               <p className="text-xs font-medium">
-                                {reply.isAdmin ? (
+                                {reply.senderType === "ADMIN" ? (
                                   <span className="text-sky-700">Admin Reply</span>
                                 ) : (
                                   <span className="text-gray-600">
-                                    {selectedMessage.firstName} {selectedMessage.lastName}
+                                    {reply.firstName} {reply.lastName}
                                   </span>
                                 )}
                               </p>
                               <p className="text-xs text-gray-500">{new Date(reply.createdAt).toLocaleString()}</p>
                             </div>
-                            <p className={`whitespace-pre-wrap ${reply.isAdmin ? "text-sky-900" : "text-gray-900"}`}>
-                              {reply.reply}
+                            <p
+                              className={`whitespace-pre-wrap ${
+                                reply.senderType === "ADMIN" ? "text-sky-900" : "text-gray-900"
+                              }`}
+                            >
+                              {reply.message}
                             </p>
                           </div>
                         ))}
@@ -404,18 +442,19 @@ export default function AdminMessages() {
           <DialogHeader>
             <DialogTitle>Reply to Message</DialogTitle>
             <DialogDescription>
-              {selectedMessage && (
+              {selectedThread && (
                 <>
-                  Replying to {selectedMessage.firstName} {selectedMessage.lastName} ({selectedMessage.email})
+                  Replying to {selectedThread.originalMessage.firstName} {selectedThread.originalMessage.lastName} (
+                  {selectedThread.originalMessage.email})
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {selectedMessage && (
+            {selectedThread && (
               <div className="bg-gray-50 p-4 rounded-lg mb-4">
                 <p className="text-sm font-medium text-gray-500 mb-2">Original Message:</p>
-                <p className="text-sm text-gray-700">{selectedMessage.message}</p>
+                <p className="text-sm text-gray-700">{selectedThread.originalMessage.message}</p>
               </div>
             )}
             <div>
@@ -430,7 +469,9 @@ export default function AdminMessages() {
                 rows={8}
                 className="resize-none"
               />
-              <p className="text-xs text-gray-500 mt-2">Your reply will be sent to {selectedMessage?.email}</p>
+              <p className="text-xs text-gray-500 mt-2">
+                Your reply will be sent to {selectedThread?.originalMessage.email}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -468,24 +509,24 @@ export default function AdminMessages() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Message</DialogTitle>
+            <DialogTitle>Delete Message Thread</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this message? This action cannot be undone and will remove all
-              conversation history.
+              Are you sure you want to delete this entire message thread? This action cannot be undone and will remove
+              all conversation history ({selectedThread?.totalMessages || 0} messages).
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
               Cancel
             </Button>
-            <Button onClick={handleDeleteMessage} disabled={deleting} className="bg-red-600 hover:bg-red-700">
+            <Button onClick={handleDeleteThread} disabled={deleting} className="bg-red-600 hover:bg-red-700">
               {deleting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                "Delete Thread"
               )}
             </Button>
           </DialogFooter>
