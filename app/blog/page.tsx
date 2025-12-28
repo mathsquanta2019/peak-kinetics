@@ -33,10 +33,12 @@ export default function BlogPage() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.blog.list}?status=published`)
+      const response = await fetch(`${API_ENDPOINTS.blog.list}?status=published&page=0&pageSize=100`)
       if (response.ok) {
-        const data = await response.json()
-        setPosts(data)
+        const result = await response.json()
+        console.log("[v0] Blog API response:", result)
+        const postsArray = result.data || []
+        setPosts(postsArray)
       }
     } catch (error) {
       console.error("Failed to fetch posts:", error)

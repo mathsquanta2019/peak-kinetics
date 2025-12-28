@@ -20,28 +20,21 @@ export default function AdminDashboard() {
       try {
         const [messagesRes, reviewsRes, blogsRes] = await Promise.all([
           fetch(API_ENDPOINTS.messages.list, { credentials: "include" }),
-          fetch(API_ENDPOINTS.reviews.list, { credentials: "include" }),
-          fetch(API_ENDPOINTS.blog.list, { credentials: "include" }),
+          fetch(`${API_ENDPOINTS.reviews.list}?page=0&pageSize=1`, { credentials: "include" }),
+          fetch(`${API_ENDPOINTS.blog.list}?page=0&pageSize=1`, { credentials: "include" }),
         ])
 
         const messagesData = messagesRes.ok ? await messagesRes.json() : { data: [], unread: 0, total: 0 }
         const reviewsData = reviewsRes.ok ? await reviewsRes.json() : { data: [], total: 0 }
-        const blogsData = blogsRes.ok ? await blogsRes.json() : { data: [] }
+        const blogsData = blogsRes.ok ? await blogsRes.json() : { data: [], total: 0 }
 
         console.log("[v0] Dashboard API responses:", { messagesData, reviewsData, blogsData })
 
-        // Extract data from nested structure
-        const messagesTotal = messagesData.total || 0
-        const messagesUnread = messagesData.unread || 0
-        const reviewsTotal = reviewsData.total || 0
-        const blogsArray = blogsData.data || blogsData || []
-        const blogsTotal = Array.isArray(blogsArray) ? blogsArray.length : 0
-
         setStats({
-          messages: messagesTotal,
-          reviews: reviewsTotal,
-          blogPosts: blogsTotal,
-          unreadMessages: messagesUnread,
+          messages: messagesData.total || 0,
+          reviews: reviewsData.total || 0,
+          blogPosts: blogsData.total || 0,
+          unreadMessages: messagesData.unread || 0,
         })
       } catch (error) {
         console.error("[v0] Failed to fetch stats:", error)
