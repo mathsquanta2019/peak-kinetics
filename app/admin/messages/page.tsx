@@ -13,9 +13,27 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { Search, Mail, MailOpen, Reply, Loader2 } from "lucide-react"
+import { Search, Mail, MailOpen, ReplyIcon, Loader2, Trash2 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/api-config"
+
+interface MessageReply {
+  id: number
+  messageId: number
+  reply: string
+  isAdmin: boolean
+  createdAt: string
+}
 
 interface Message {
   id: number
@@ -27,6 +45,7 @@ interface Message {
   message: string
   read: boolean
   createdAt: string
+  replies?: MessageReply[]
 }
 
 export default function AdminMessages() {
@@ -39,6 +58,9 @@ export default function AdminMessages() {
   const [replyDialogOpen, setReplyDialogOpen] = useState(false)
   const [replyText, setReplyText] = useState("")
   const [sendingReply, setSendingReply] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [messageToDelete, setMessageToDelete] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchMessages = async () => {
     try {
@@ -93,19 +115,28 @@ export default function AdminMessages() {
 
     try {
       setSendingReply(true)
-      const response = await fetch(`${API_ENDPOINTS.messages.reply}/${selectedMessage.id}`, {
+      const response = await fetch(API_ENDPOINTS.messages.reply, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
         body: JSON.stringify({
+          messageId: selectedMessage.id,
+          email: selectedMessage.email,
           reply: replyText.trim(),
         }),
       })
 
       if (!response.ok) {
         throw new Error(`Failed to send reply: ${response.statusText}`)
+      }
+
+      await fetchMessages()
+
+      const updatedMessage = messages.find((m) => m.id === selectedMessage.id)
+      if (updatedMessage) {
+        setSelectedMessage(updatedMessage)
       }
 
       setReplyDialogOpen(false)
@@ -117,6 +148,37 @@ export default function AdminMessages() {
       alert("Failed to send reply. Please try again.")
     } finally {
       setSendingReply(false)
+    }
+  }
+
+  const handleDeleteMessage = async () => {
+    if (!messageToDelete) return
+
+    try {
+      setDeleting(true)
+      const response = await fetch(`${API_ENDPOINTS.messages.delete}/${messageToDelete}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete message: ${response.statusText}`)
+      }
+
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageToDelete))
+
+      if (selectedMessage?.id === messageToDelete) {
+        setSelectedMessage(null)
+      }
+
+      setDeleteDialogOpen(false)
+      setMessageToDelete(null)
+      alert("Message deleted successfully!")
+    } catch (error) {
+      console.error("[v0] Error deleting message:", error)
+      alert("Failed to delete message. Please try again.")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -160,7 +222,6 @@ export default function AdminMessages() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Messages List */}
         <Card className="lg:col-span-1 p-4">
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -230,7 +291,6 @@ export default function AdminMessages() {
           </div>
         </Card>
 
-        {/* Message Details */}
         <Card className="lg:col-span-2 p-6">
           {selectedMessage ? (
             <div className="space-y-6">
@@ -252,8 +312,19 @@ export default function AdminMessages() {
                   ) : (
                     <Badge className="bg-sky-600">Unread</Badge>
                   )}
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setMessageToDelete(selectedMessage.id)
+                      setDeleteDialogOpen(true)
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
                   <Button onClick={() => setReplyDialogOpen(true)} className="bg-sky-600 hover:bg-sky-700">
-                    <Reply className="h-4 w-4 mr-2" />
+                    <ReplyIcon className="h-4 w-4 mr-2" />
                     Reply
                   </Button>
                 </div>
@@ -279,10 +350,51 @@ export default function AdminMessages() {
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-2">Message</p>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.message}</p>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 mb-2">Conversation</p>
+
+                    <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-gray-600">
+                          {selectedMessage.firstName} {selectedMessage.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">{new Date(selectedMessage.createdAt).toLocaleString()}</p>
+                      </div>
+                      <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.message}</p>
+                    </div>
+
+                    {selectedMessage.replies && selectedMessage.replies.length > 0 && (
+                      <div className="space-y-3">
+                        {selectedMessage.replies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className={`p-4 rounded-lg border-l-4 ${
+                              reply.isAdmin ? "bg-sky-50 border-sky-500" : "bg-gray-50 border-gray-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs font-medium">
+                                {reply.isAdmin ? (
+                                  <span className="text-sky-700">Admin Reply</span>
+                                ) : (
+                                  <span className="text-gray-600">
+                                    {selectedMessage.firstName} {selectedMessage.lastName}
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-gray-500">{new Date(reply.createdAt).toLocaleString()}</p>
+                            </div>
+                            <p
+                              className={reply.isAdmin ? "text-sky-900" : "text-gray-900"}
+                              className="whitespace-pre-wrap"
+                            >
+                              {reply.reply}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -299,7 +411,6 @@ export default function AdminMessages() {
         </Card>
       </div>
 
-      {/* Reply Dialog */}
       <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -357,7 +468,7 @@ export default function AdminMessages() {
                 </>
               ) : (
                 <>
-                  <Reply className="h-4 w-4 mr-2" />
+                  <ReplyIcon className="h-4 w-4 mr-2" />
                   Send Reply
                 </>
               )}
@@ -365,6 +476,35 @@ export default function AdminMessages() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this message? This action cannot be undone and will remove all
+              conversation history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMessage}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

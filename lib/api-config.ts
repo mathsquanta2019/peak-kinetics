@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
     list: `${API_BASE_URL}/messages/admin`,
     markAsRead: `${API_BASE_URL}/messages/admin`,
     reply: `${API_BASE_URL}/messages/reply`,
+    delete: `${API_BASE_URL}/messages/admin`,
   },
   blog: {
     list: `${API_BASE_URL}/blog`,
