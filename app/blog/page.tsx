@@ -33,7 +33,7 @@ export default function BlogPage() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.blog.list}?status=PUBLISHED&limit=100`)
+      const response = await fetch(`${API_ENDPOINTS.blog.list}?status=published&limit=100`)
       if (response.ok) {
         const result = await response.json()
         console.log("[v0] Blog API response:", result)
