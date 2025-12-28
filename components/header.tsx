@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Calendar, Phone, ChevronDown } from "lucide-react"
+import { Menu, X, Calendar, Phone, ChevronDown, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SchedulingIframeModal } from "./scheduling-iframe-modal"
 import { useScheduling } from "./scheduling-context"
+import Link from "next/link"
 
 function LogoComponent() {
   return (
@@ -151,6 +152,15 @@ export function Header() {
 
             {/* Desktop CTA Section */}
             <div className="hidden lg:flex items-center gap-6">
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-primary/5 transition-all duration-300 whitespace-nowrap group"
+              >
+                <Shield className="h-5 w-5 text-primary flex-shrink-0" />
+                <span className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                  Admin
+                </span>
+              </Link>
               <a
                 href="tel:737-368-2653"
                 className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-primary/5 transition-all duration-300 whitespace-nowrap"
@@ -169,6 +179,13 @@ export function Header() {
 
             {/* Mobile Actions */}
             <div className="flex lg:hidden items-center gap-2">
+              <Link
+                href="/admin"
+                className="p-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-all duration-300"
+                aria-label="Admin portal"
+              >
+                <Shield className="h-6 w-6 text-primary" />
+              </Link>
               <a
                 href="tel:737-368-2653"
                 className="p-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-all duration-300"
@@ -206,7 +223,14 @@ export function Header() {
                       {item.label}
                     </button>
                   ))}
-
+                  <Link
+                    href="/admin"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="mobile-menu-item animate-slide-in-left text-center text-primary"
+                    style={{ animationDelay: `${navItems.length * 0.1}s` }}
+                  >
+                    Admin Portal
+                  </Link>
                   <div
                     className="pt-8 border-t border-border/50 animate-slide-in-left"
                     style={{ animationDelay: "0.4s" }}
