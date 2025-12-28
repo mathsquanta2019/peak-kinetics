@@ -19,124 +19,41 @@ export interface Review {
   treatment?: string
 }
 
-const mockReviews: Review[] = [
-  {
-    id: "1",
-    name: "Michael Rodriguez",
-    role: "Construction Worker",
-    image: "/middle-aged-construction-worker-headshot.jpg",
-    rating: 5,
-    text: "After my back injury, I thought I'd never work again. The team at PeakKinetics not only got me back to work but stronger than before.",
-    date: "2 weeks ago",
-    fullText:
-      "After my back injury, I thought I'd never work again. The team at PeakKinetics not only got me back to work but stronger than before. Their approach is truly life-changing. They took time to understand my condition and created a personalized program that actually works.",
-    treatment: "Back Injury Recovery",
-  },
-  {
-    id: "2",
-    name: "Jennifer Chen",
-    role: "Professional Athlete",
-    image: "/young-female-athlete-headshot.jpg",
-    rating: 5,
-    text: "As a professional tennis player, I need the best care possible. PeakKinetics delivered beyond my expectations.",
-    date: "1 month ago",
-    fullText:
-      "As a professional tennis player, I need the best care possible. PeakKinetics delivered beyond my expectations. My shoulder feels better than it has in years. The sports-specific rehab program they provided was exactly what I needed.",
-    treatment: "Shoulder Injury - Sports Performance",
-  },
-  {
-    id: "3",
-    name: "Robert Thompson",
-    role: "Retired Teacher",
-    image: "/elderly-man-smiling-headshot.jpg",
-    rating: 5,
-    text: "At 68, I was struggling with balance and mobility. The geriatric program here has given me my confidence back.",
-    date: "3 weeks ago",
-    fullText:
-      "At 68, I was struggling with balance and mobility. The geriatric program here has given me my confidence back. I'm walking without fear again. The therapists were incredibly patient and understanding of my needs.",
-    treatment: "Balance & Mobility Program",
-  },
-  {
-    id: "4",
-    name: "Amanda Foster",
-    role: "Working Mom",
-    image: "/young-mother-headshot.jpg",
-    rating: 5,
-    text: "Between work and kids, I developed chronic neck pain. The flexible scheduling at PeakKinetics fit perfectly into my busy life.",
-    date: "1 week ago",
-    fullText:
-      "Between work and kids, I developed chronic neck pain. The flexible scheduling and effective treatment at PeakKinetics fit perfectly into my busy life. They understood my constraints and helped me manage my pain effectively.",
-    treatment: "Chronic Neck Pain Management",
-  },
-  {
-    id: "5",
-    name: "David Kim",
-    role: "Weekend Warrior",
-    image: "/middle-aged-man-athlete-headshot.jpg",
-    rating: 5,
-    text: "My knee injury from basketball was limiting everything I loved. The sports rehab program got me back on the court.",
-    date: "5 days ago",
-    fullText:
-      "My knee injury from basketball was limiting everything I loved. The sports rehab program got me back on the court and taught me how to prevent future injuries. The team's expertise in sports medicine is unmatched.",
-    treatment: "Knee Injury - Basketball Recovery",
-  },
-  {
-    id: "6",
-    name: "Maria Santos",
-    role: "Office Manager",
-    image: "/professional-woman-headshot.png",
-    rating: 5,
-    text: "Years of desk work had destroyed my posture. The movement screening and exercises have transformed how I feel.",
-    date: "10 days ago",
-    fullText:
-      "Years of desk work had destroyed my posture and caused constant pain. The movement screening and corrective exercises have transformed how I feel every day. I can't thank them enough for helping me reclaim my health.",
-    treatment: "Postural Correction & Ergonomics",
-  },
-  {
-    id: "7",
-    name: "Lisa Wong",
-    role: "Fitness Instructor",
-    image: "/young-female-athlete-headshot.jpg",
-    rating: 5,
-    text: "I was skeptical about physical therapy until I found PeakKinetics. Their scientific approach is incredible.",
-    date: "3 days ago",
-    fullText:
-      "I was skeptical about physical therapy until I found PeakKinetics. Their scientific approach is incredible and the results speak for themselves. I've already recommended them to all my clients.",
-    treatment: "Performance Enhancement",
-  },
-  {
-    id: "8",
-    name: "James Patterson",
-    role: "Construction Manager",
-    image: "/middle-aged-man-athlete-headshot.jpg",
-    rating: 5,
-    text: "Quick recovery, professional staff, and outstanding results. Couldn't ask for better.",
-    date: "2 days ago",
-    fullText:
-      "Quick recovery, professional staff, and outstanding results. Couldn't ask for better. They got me back to managing my site in no time. Highly recommend PeakKinetics to anyone.",
-    treatment: "Work-Related Injury Recovery",
-  },
-]
-
-const fetchReviewsFromBackend = async (): Promise<Review[]> => {
-  try {
-    const response = await fetch(API_ENDPOINTS.reviews.list)
-    const result = await response.json()
-    if (result.success && result.data) {
-      return result.data
-    }
-    return mockReviews
-  } catch (error) {
-    console.error("[v0] Error fetching reviews:", error)
-    return mockReviews
-  }
-}
-
 export function ReviewsSection() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
-  const [reviews, setReviews] = useState<Review[]>(mockReviews)
+  const [reviews, setReviews] = useState<Review[]>([])
   const [isPaused, setIsPaused] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.reviews.list}?page=0&pageSize=20`)
+        const result = await response.json()
+        if (result.success && result.data) {
+          const backendReviews = result.data.map((review: any) => ({
+            id: review.id.toString(),
+            name: review.patientName,
+            role: "Patient",
+            image: "/patient-consultation.png",
+            rating: review.rating,
+            text: review.comment.length > 120 ? review.comment.substring(0, 120) + "..." : review.comment,
+            date: new Date(review.createdAt).toLocaleDateString(),
+            fullText: review.comment,
+            treatment: "Treatment",
+          }))
+          setReviews(backendReviews)
+        }
+      } catch (error) {
+        console.error("[v0] Error fetching reviews:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchReviews()
+  }, [])
 
   useEffect(() => {
     const container = scrollContainerRef.current
@@ -167,18 +84,35 @@ export function ReviewsSection() {
     }
   }, [isPaused, reviews])
 
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const newReviews = await fetchReviewsFromBackend()
-        setReviews(newReviews)
-      } catch (error) {
-        console.error("[v0] Error fetching reviews:", error)
-      }
-    }, 30000) // Poll every 30 seconds
+  if (loading) {
+    return (
+      <section className="py-24 bg-background">
+        <div className="container mx-auto px-4 text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-sky-200 border-t-sky-600 mb-4" />
+          <p className="text-gray-500 text-lg">Loading reviews...</p>
+        </div>
+      </section>
+    )
+  }
 
-    return () => clearInterval(pollInterval)
-  }, [])
+  if (reviews.length === 0) {
+    return (
+      <section className="py-24 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="text-center py-20 max-w-md mx-auto">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Patient Reviews</h2>
+            <p className="text-lg text-muted-foreground mb-8">Be the first to share your experience!</p>
+            <Link href="/review">
+              <Button className="gap-2 h-12 px-6">
+                <span>+</span>
+                Leave a Review
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="py-24 bg-background">
@@ -189,7 +123,7 @@ export function ReviewsSection() {
               Patient Reviews & <span className="text-primary">Success Stories</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl text-pretty">
-              Scroll through thousands of real stories from patients who've transformed their lives with PeakKinetics.
+              Real stories from patients who've transformed their lives with PeakKinetics.
             </p>
           </div>
           <Link href="/review">
@@ -278,11 +212,19 @@ export function ReviewsSection() {
             <div className="text-muted-foreground">Patient Reviews</div>
           </div>
           <div>
-            <div className="text-4xl font-bold text-primary mb-2">4.9/5</div>
+            <div className="text-4xl font-bold text-primary mb-2">
+              {reviews.length > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) : "0"}
+              /5
+            </div>
             <div className="text-muted-foreground">Average Rating</div>
           </div>
           <div>
-            <div className="text-4xl font-bold text-primary mb-2">100%</div>
+            <div className="text-4xl font-bold text-primary mb-2">
+              {reviews.length > 0
+                ? Math.round((reviews.filter((r) => r.rating >= 4).length / reviews.length) * 100)
+                : 0}
+              %
+            </div>
             <div className="text-muted-foreground">Recommended</div>
           </div>
         </div>

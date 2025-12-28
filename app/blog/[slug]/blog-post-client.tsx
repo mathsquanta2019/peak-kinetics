@@ -6,9 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { API_ENDPOINTS } from "@/lib/api-config"
 import { useState, useEffect } from "react"
-import { Calendar, Clock, ArrowLeft, Share2 } from "lucide-react"
+import { Calendar, Clock, ArrowLeft, Share2, User } from "lucide-react"
 import Link from "next/link"
-import Image from "next/image"
 
 interface BlogPost {
   id: string
@@ -32,13 +31,16 @@ export default function BlogPostClient({ slug }: { slug: string }) {
 
   const fetchPost = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.blog.list}?slug=${slug}`)
+      const response = await fetch(`${API_ENDPOINTS.blog.list}/${slug}`)
       if (response.ok) {
-        const data = await response.json()
-        setPost(data)
+        const result = await response.json()
+        console.log("[v0] Blog post API response:", result)
+        if (result.success && result.data) {
+          setPost(result.data)
+        }
       }
     } catch (error) {
-      console.error("Failed to fetch post:", error)
+      console.error("[v0] Failed to fetch post:", error)
     } finally {
       setLoading(false)
     }
@@ -59,7 +61,10 @@ export default function BlogPostClient({ slug }: { slug: string }) {
       <>
         <Header />
         <main className="min-h-screen pt-24 pb-16 flex items-center justify-center">
-          <p className="text-gray-500">Loading article...</p>
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-sky-200 border-t-sky-600 mb-4" />
+            <p className="text-gray-500 text-lg">Loading article...</p>
+          </div>
         </main>
         <Footer />
       </>
@@ -87,31 +92,18 @@ export default function BlogPostClient({ slug }: { slug: string }) {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-24 pb-16">
+      <main className="min-h-screen bg-white pt-24 pb-16">
         <article className="container mx-auto px-4 max-w-4xl">
           <Link href="/blog">
-            <Button variant="ghost" className="mb-8">
+            <Button variant="ghost" className="mb-8 hover:bg-gray-100">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Blog
             </Button>
           </Link>
 
-          {post.featuredImage && (
-            <div className="relative h-96 rounded-2xl overflow-hidden mb-8">
-              <Image
-                src={post.featuredImage || "/placeholder.svg"}
-                alt={post.title}
-                fill
-                className="object-cover"
-                sizes="1200px"
-                priority
-              />
-            </div>
-          )}
-
           <div className="flex flex-wrap gap-2 mb-6">
             {post.tags.map((tag) => (
-              <Badge key={tag} className="bg-sky-100 text-sky-700 hover:bg-sky-200">
+              <Badge key={tag} className="bg-sky-100 text-sky-700 hover:bg-sky-200 border-sky-200">
                 {tag}
               </Badge>
             ))}
@@ -119,41 +111,56 @@ export default function BlogPostClient({ slug }: { slug: string }) {
 
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">{post.title}</h1>
 
-          <div className="flex items-center justify-between pb-8 mb-8 border-b border-gray-200">
-            <div className="flex items-center gap-6 text-gray-600">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                <span>
-                  {new Date(post.publishedAt).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                <span>5 min read</span>
-              </div>
-              <span>By {post.author}</span>
+          <div className="flex items-center gap-6 text-gray-600 pb-8 mb-8 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5 text-sky-600" />
+              <span className="font-medium">{post.author}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={handleShare}>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-sky-600" />
+              <span>
+                {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-sky-600" />
+              <span>5 min read</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleShare} className="ml-auto bg-transparent">
               <Share2 className="h-4 w-4 mr-2" />
               Share
             </Button>
           </div>
 
-          <div className="prose prose-lg max-w-none">
-            <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">{post.content}</div>
+          {post.featuredImage && (
+            <div className="relative h-96 rounded-2xl overflow-hidden mb-12 shadow-lg">
+              <img
+                src={post.featuredImage || "/placeholder.svg"}
+                alt={post.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          <div className="prose prose-lg prose-sky max-w-none">
+            <div
+              className="text-gray-800 leading-relaxed space-y-6"
+              style={{ whiteSpace: "pre-wrap" }}
+              dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, "<br />") }}
+            />
           </div>
 
-          <div className="mt-16 p-8 bg-sky-50 rounded-2xl border border-sky-100">
+          <div className="mt-16 p-8 bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl border border-sky-100">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Ready to Start Your Recovery Journey?</h3>
-            <p className="text-gray-700 mb-6">
+            <p className="text-gray-700 mb-6 text-lg">
               Our expert team at Peak Kinetics is here to help you achieve your health and wellness goals.
             </p>
             <Link href="/#contact">
-              <Button className="bg-sky-600 hover:bg-sky-700">Schedule Your Consultation</Button>
+              <Button className="bg-sky-600 hover:bg-sky-700 h-12 px-8">Schedule Your Consultation</Button>
             </Link>
           </div>
         </article>
