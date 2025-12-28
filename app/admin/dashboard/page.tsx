@@ -24,26 +24,27 @@ export default function AdminDashboard() {
           fetch(API_ENDPOINTS.blog.list, { credentials: "include" }),
         ])
 
-        const messagesData = messagesRes.ok ? await messagesRes.json() : { data: [] }
+        const messagesData = messagesRes.ok ? await messagesRes.json() : { data: [], unread: 0, total: 0 }
         const reviewsData = reviewsRes.ok ? await reviewsRes.json() : { data: [], total: 0 }
         const blogsData = blogsRes.ok ? await blogsRes.json() : { data: [] }
 
-        console.log("[v0] Dashboard stats:", { messagesData, reviewsData, blogsData })
+        console.log("[v0] Dashboard API responses:", { messagesData, reviewsData, blogsData })
 
-        const messages = Array.isArray(messagesData) ? messagesData : messagesData.data || []
-        const reviews = reviewsData.total || reviewsData.data?.length || 0
-        const blogs = Array.isArray(blogsData) ? blogsData : blogsData.data || []
-
-        const unread = messages.filter((m: { read: boolean }) => !m.read).length
+        // Extract data from nested structure
+        const messagesTotal = messagesData.total || 0
+        const messagesUnread = messagesData.unread || 0
+        const reviewsTotal = reviewsData.total || 0
+        const blogsArray = blogsData.data || blogsData || []
+        const blogsTotal = Array.isArray(blogsArray) ? blogsArray.length : 0
 
         setStats({
-          messages: messages.length,
-          reviews: reviews,
-          blogPosts: blogs.length,
-          unreadMessages: unread,
+          messages: messagesTotal,
+          reviews: reviewsTotal,
+          blogPosts: blogsTotal,
+          unreadMessages: messagesUnread,
         })
       } catch (error) {
-        console.error("Failed to fetch stats:", error)
+        console.error("[v0] Failed to fetch stats:", error)
       } finally {
         setLoading(false)
       }
@@ -117,7 +118,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {statCards.map((stat) => {
           const Icon = stat.icon
           return (
