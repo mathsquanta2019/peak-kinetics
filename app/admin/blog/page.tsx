@@ -60,7 +60,7 @@ export default function AdminBlogPage() {
     if (!confirm("Are you sure you want to delete this blog post?")) return
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.blog.delete}/${postId}`, {
+      const response = await fetch(API_ENDPOINTS.blog.delete(Number(postId)), {
         method: "DELETE",
         credentials: "include",
       })

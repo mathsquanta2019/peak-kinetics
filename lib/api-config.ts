@@ -19,10 +19,10 @@ export const API_ENDPOINTS = {
   },
   blog: {
     list: `${API_BASE_URL}/blog`,
-    create: `${API_BASE_URL}/blog/admin`,
-    update: `${API_BASE_URL}/blog/admin`,
-    delete: `${API_BASE_URL}/blog/admin`,
-    upload: `${API_BASE_URL}/blog/admin/upload`,
+    create: (authorId: number) => `${API_BASE_URL}/blog/admin/${authorId}`,
+    update: (postId: number) => `${API_BASE_URL}/blog/admin/blog/${postId}`,
+    delete: (postId: number) => `${API_BASE_URL}/blog/admin/blog/${postId}`,
+    upload: `${API_BASE_URL}/blog/admin/blog/upload`,
   },
   auth: {
     login: `${API_BASE_URL}/admin/auth/login`,

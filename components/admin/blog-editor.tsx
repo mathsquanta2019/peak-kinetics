@@ -147,7 +147,9 @@ export function BlogEditor({ postId }: BlogEditorProps) {
           .filter((tag) => tag),
       }
 
-      const url = postId ? `${API_ENDPOINTS.blog.update}/${postId}` : API_ENDPOINTS.blog.create
+      // For create: POST /api/blog/admin/{authorId}
+      // For update: PUT /api/blog/admin/blog/{postId}
+      const url = postId ? API_ENDPOINTS.blog.update(Number(postId)) : API_ENDPOINTS.blog.create(1) // TODO: Get actual authorId from auth
       const method = postId ? "PUT" : "POST"
 
       const response = await fetch(url, {
