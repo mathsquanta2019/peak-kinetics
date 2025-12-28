@@ -88,7 +88,7 @@ export default function AdminMessages() {
 
   const fetchThreadDetails = async (threadId: number) => {
     try {
-      const response = await fetch(API_ENDPOINTS.messages.getThread(threadId), {
+      const response = await fetch(API_ENDPOINTS.messages.thread(threadId), {
         credentials: "include",
       })
 
@@ -109,30 +109,17 @@ export default function AdminMessages() {
     }
   }
 
-  const handleSearch = async (query: string) => {
-    setSearchTerm(query)
-
-    if (!query.trim()) {
-      setSearchResults(null)
-      setIsSearching(false)
-      return
-    }
-
+  const handleSearch = async () => {
+    setIsSearching(true)
     try {
-      setIsSearching(true)
-      const response = await fetch(API_ENDPOINTS.messages.search(query), {
-        credentials: "include",
-      })
-
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        setSearchResults(result.data || [])
-      }
+      const filtered = threads.filter(
+        (thread) =>
+          thread.originalMessage.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          thread.originalMessage.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          thread.originalMessage.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          thread.originalMessage.message.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+      setSearchResults(filtered)
     } catch (error) {
       console.error("Error searching messages:", error)
       setSearchResults([])
@@ -236,8 +223,8 @@ export default function AdminMessages() {
 
   const handleMarkAsRead = async (threadId: number, messageId: number) => {
     try {
-      await fetch(API_ENDPOINTS.messages.markAsRead(messageId), {
-        method: "PUT",
+      await fetch(API_ENDPOINTS.messages.markMessageAsRead(messageId), {
+        method: "PATCH",
         credentials: "include",
       })
 
@@ -307,12 +294,12 @@ export default function AdminMessages() {
                 <Input
                   placeholder="Search messages..."
                   value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-8"
                 />
                 {searchTerm && (
                   <button
-                    onClick={() => handleSearch("")}
+                    onClick={() => setSearchTerm("")}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="h-4 w-4" />
