@@ -157,11 +157,14 @@ export default function AdminMessages() {
         },
         credentials: "include",
         body: JSON.stringify({
+          parentMessageId: selectedThread.originalMessage.id,
           message: replyText.trim(),
         }),
       })
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        console.error("[v0] Reply error:", errorData)
         throw new Error(`Failed to send reply: ${response.statusText}`)
       }
 
