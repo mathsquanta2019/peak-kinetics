@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { API_ENDPOINTS } from "@/lib/api-config"
-import { adminAuth } from "@/lib/admin-auth"
 import { useState, useEffect } from "react"
 import { Plus, Edit2, Trash2, Eye, Calendar, Search, FileText } from "lucide-react"
 import Link from "next/link"
@@ -37,12 +36,13 @@ export default function AdminBlogPage() {
   const fetchPosts = async () => {
     try {
       const response = await fetch(API_ENDPOINTS.blog.list, {
-        credentials: "include"
+        credentials: "include",
       })
 
       if (response.ok) {
-        const data = await response.json()
-        setPosts(data)
+        const result = await response.json()
+        console.log("[v0] Blog API response:", result)
+        setPosts(result.data || [])
       }
     } catch (error) {
       console.error("Failed to fetch posts:", error)
@@ -62,7 +62,7 @@ export default function AdminBlogPage() {
     try {
       const response = await fetch(`${API_ENDPOINTS.blog.delete}/${postId}`, {
         method: "DELETE",
-        credentials: "include"
+        credentials: "include",
       })
 
       if (response.ok) {
