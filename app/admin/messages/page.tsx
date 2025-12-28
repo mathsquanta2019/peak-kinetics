@@ -72,11 +72,15 @@ export default function AdminMessages() {
       }
 
       const result = await response.json()
-      console.log("[v0] Threads API response:", result) // Keep for debugging if needed
+      console.log("[v0] Threads API response:", result)
 
       if (result.success) {
-        setThreads(result.data || [])
-        // Removed setting unreadThreads here as it's handled by fetchUnreadCount
+        const threadData = result.data || []
+        setThreads(threadData)
+
+        // Calculate unread count from threads - count threads with unread messages
+        const unreadThreadsCount = threadData.filter((thread: ThreadResponse) => thread.hasUnreadMessages).length
+        setUnreadCount(unreadThreadsCount)
       }
     } catch (error) {
       console.error("[v0] Error fetching threads:", error)
@@ -86,9 +90,9 @@ export default function AdminMessages() {
     }
   }
 
-  const fetchUnreadCount = async () => {
+  const fetchThreadDetails = async (threadId: number) => {
     try {
-      const response = await fetch(API_ENDPOINTS.messages.unreadCount, {
+      const response = await fetch(API_ENDPOINTS.messages.getThread(threadId), {
         credentials: "include",
       })
 
@@ -97,10 +101,15 @@ export default function AdminMessages() {
       const result = await response.json()
 
       if (result.success) {
-        setUnreadCount(result.data || 0)
+        const updatedThread = result.data
+        setThreads((prev) => prev.map((t) => (t.threadId === threadId ? updatedThread : t)))
+
+        if (selectedThread?.threadId === threadId) {
+          setSelectedThread(updatedThread)
+        }
       }
     } catch (error) {
-      console.error("Error fetching unread count:", error)
+      console.error("[v0] Error fetching thread details:", error)
     }
   }
 
@@ -138,62 +147,25 @@ export default function AdminMessages() {
 
   useEffect(() => {
     fetchThreads()
-    fetchUnreadCount() // Fetch unread count on initial load
   }, [])
 
   const markMessageAsRead = async (messageId: number) => {
     try {
       const response = await fetch(API_ENDPOINTS.messages.markAsRead(messageId), {
-        method: "PUT", // Changed from PATCH to PUT as per common RESTful practices for marking as read
+        method: "POST",
         credentials: "include",
       })
 
       if (response.ok) {
-        // Update the thread in state to reflect the read status
-        setThreads((prev) =>
-          prev.map((thread) => {
-            const originalMessageUpdated =
-              thread.originalMessage.id === messageId
-                ? { ...thread.originalMessage, read: true }
-                : thread.originalMessage
-
-            const repliesUpdated = thread.replies.map((r) => (r.id === messageId ? { ...r, read: true } : r))
-
-            const hasUnread = !originalMessageUpdated.read || repliesUpdated.some((r) => !r.read)
-
-            return {
-              ...thread,
-              originalMessage: originalMessageUpdated,
-              replies: repliesUpdated,
-              hasUnreadMessages: hasUnread,
-            }
-          }),
-        )
-
-        // Update selected thread if it's the current one
+        // Refresh the selected thread to update read status
         if (selectedThread) {
-          const updatedOriginal =
-            selectedThread.originalMessage.id === messageId
-              ? { ...selectedThread.originalMessage, read: true }
-              : selectedThread.originalMessage
-
-          const updatedReplies = selectedThread.replies.map((r) => (r.id === messageId ? { ...r, read: true } : r))
-
-          const hasUnread = !updatedOriginal.read || updatedReplies.some((r) => !r.read)
-
-          setSelectedThread({
-            ...selectedThread,
-            originalMessage: updatedOriginal,
-            replies: updatedReplies,
-            hasUnreadMessages: hasUnread,
-          })
+          await fetchThreadDetails(selectedThread.threadId)
         }
-
-        // Refresh unread count
-        fetchUnreadCount()
+        // Refresh threads list to update unread count
+        await fetchThreads()
       }
     } catch (error) {
-      console.error("Failed to mark message as read:", error)
+      console.error("Error marking message as read:", error)
     }
   }
 
@@ -221,7 +193,7 @@ export default function AdminMessages() {
       console.log("[v0] Reply response:", result) // Keep for debugging if needed
 
       // Refresh the thread to get updated data
-      await refreshThread(selectedThread.threadId)
+      await fetchThreadDetails(selectedThread.threadId)
 
       setReplyDialogOpen(false)
       setReplyText("")
@@ -230,29 +202,6 @@ export default function AdminMessages() {
       alert("Failed to send reply. Please try again.")
     } finally {
       setSendingReply(false)
-    }
-  }
-
-  const refreshThread = async (threadId: number) => {
-    try {
-      const response = await fetch(API_ENDPOINTS.messages.getThread(threadId), {
-        credentials: "include",
-      })
-
-      if (!response.ok) return
-
-      const result = await response.json()
-
-      if (result.success) {
-        const updatedThread = result.data
-        setThreads((prev) => prev.map((t) => (t.threadId === threadId ? updatedThread : t)))
-
-        if (selectedThread?.threadId === threadId) {
-          setSelectedThread(updatedThread)
-        }
-      }
-    } catch (error) {
-      console.error("[v0] Error refreshing thread:", error)
     }
   }
 
@@ -278,7 +227,7 @@ export default function AdminMessages() {
 
       setDeleteDialogOpen(false)
       setThreadToDelete(null)
-      fetchUnreadCount() // Refresh unread count after deletion
+      fetchThreads() // Refresh unread count after deletion
     } catch (error) {
       console.error("[v0] Error deleting thread:", error)
       alert("Failed to delete thread. Please try again.")
@@ -294,17 +243,15 @@ export default function AdminMessages() {
     return matchesFilter
   })
 
-  const handleSelectThread = (thread: ThreadResponse) => {
+  const handleThreadClick = async (thread: ThreadResponse) => {
     setSelectedThread(thread)
+    await fetchThreadDetails(thread.threadId)
 
-    const unreadMessages = [
-      ...(!thread.originalMessage.read ? [thread.originalMessage.id] : []),
-      ...thread.replies.filter((r) => !r.read).map((r) => r.id),
-    ]
-
-    unreadMessages.forEach((messageId) => {
-      markMessageAsRead(messageId)
-    })
+    // Mark unread messages in this thread as read
+    const unreadMessages = thread.messages?.filter((msg) => !msg.read) || []
+    for (const message of unreadMessages) {
+      await markMessageAsRead(message.id)
+    }
   }
 
   if (loading) {
@@ -335,7 +282,6 @@ export default function AdminMessages() {
         <Button
           onClick={() => {
             fetchThreads()
-            fetchUnreadCount()
           }}
           variant="outline"
           size="sm"
@@ -422,7 +368,7 @@ export default function AdminMessages() {
                   return (
                     <div
                       key={thread.threadId}
-                      onClick={() => handleSelectThread(thread)}
+                      onClick={() => handleThreadClick(thread)}
                       className={`p-4 rounded-lg cursor-pointer transition-all border-2 ${
                         isSelected
                           ? "bg-gradient-to-br from-sky-50 to-sky-100 border-sky-500 shadow-md"
