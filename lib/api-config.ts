@@ -11,15 +11,18 @@ export const API_ENDPOINTS = {
     create: `${API_BASE_URL}/messages`,
     list: `${API_BASE_URL}/messages/admin`, // Legacy endpoint
     threads: `${API_BASE_URL}/messages/admin/threads`, // Recommended endpoint
-    getThread: (threadId: number) => `${API_BASE_URL}/messages/thread/${threadId}`,
+    getThread: (threadId: number) => `${API_BASE_URL}/messages/admin/thread/${threadId}`,
     getMessage: (messageId: number) => `${API_BASE_URL}/messages/${messageId}`,
-    reply: (threadId: number) => `${API_BASE_URL}/messages/thread/${threadId}/reply`,
+    reply: (threadId: number) => `${API_BASE_URL}/messages/admin/thread/${threadId}/reply`,
     replyToMessage: (messageId: number) => `${API_BASE_URL}/messages/${messageId}/reply`,
     markMessageAsRead: (messageId: number) => `${API_BASE_URL}/messages/admin/${messageId}/read`,
     markThreadAsRead: (threadId: number) => `${API_BASE_URL}/messages/admin/thread/${threadId}/read`,
     deleteMessage: (messageId: number) => `${API_BASE_URL}/messages/admin/${messageId}`,
     deleteThread: (threadId: number) => `${API_BASE_URL}/messages/admin/thread/${threadId}`,
     statistics: `${API_BASE_URL}/messages/admin/statistics`,
+    markAsRead: (messageId: number) => `${API_BASE_URL}/messages/admin/message/${messageId}/read`,
+    unreadCount: `${API_BASE_URL}/messages/admin/unread-count`,
+    search: (query: string) => `${API_BASE_URL}/messages/admin/search?query=${encodeURIComponent(query)}`,
   },
   blog: {
     list: `${API_BASE_URL}/blog`,
