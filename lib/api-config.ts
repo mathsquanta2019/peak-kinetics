@@ -9,10 +9,17 @@ export const API_ENDPOINTS = {
   },
   messages: {
     create: `${API_BASE_URL}/messages`,
-    list: `${API_BASE_URL}/messages/admin`,
-    markAsRead: `${API_BASE_URL}/messages/admin`,
+    list: `${API_BASE_URL}/messages/admin`, // Legacy endpoint
+    threads: `${API_BASE_URL}/messages/admin/threads`, // Recommended endpoint
+    getThread: (threadId: number) => `${API_BASE_URL}/messages/thread/${threadId}`,
+    getMessage: (messageId: number) => `${API_BASE_URL}/messages/${messageId}`,
     reply: (threadId: number) => `${API_BASE_URL}/messages/thread/${threadId}/reply`,
-    delete: `${API_BASE_URL}/messages/admin`,
+    replyToMessage: (messageId: number) => `${API_BASE_URL}/messages/${messageId}/reply`,
+    markMessageAsRead: (messageId: number) => `${API_BASE_URL}/messages/admin/${messageId}/read`,
+    markThreadAsRead: (threadId: number) => `${API_BASE_URL}/messages/admin/thread/${threadId}/read`,
+    deleteMessage: (messageId: number) => `${API_BASE_URL}/messages/admin/${messageId}`,
+    deleteThread: (threadId: number) => `${API_BASE_URL}/messages/admin/thread/${threadId}`,
+    statistics: `${API_BASE_URL}/messages/admin/statistics`,
   },
   blog: {
     list: `${API_BASE_URL}/blog`,
