@@ -40,13 +40,13 @@ export function ReviewsSection() {
         if (result.success && result.data) {
           const backendReviews = result.data.map((review: any) => ({
             id: review.id.toString(),
-            name: review.patientName.split(" ")[0],
+            name: review.name.split(" ")[0], // Get first name from name field
             role: "Patient",
             image: "/patient-consultation.png",
             rating: review.rating,
-            text: review.comment.length > 120 ? review.comment.substring(0, 120) + "..." : review.comment,
-            date: new Date(review.createdAt).toLocaleDateString(),
-            fullText: review.comment,
+            text: review.text.length > 120 ? review.text.substring(0, 120) + "..." : review.text,
+            date: review.date || new Date(review.createdAt).toLocaleDateString(),
+            fullText: review.text,
             treatment: "Treatment",
           }))
           setReviews(backendReviews)
