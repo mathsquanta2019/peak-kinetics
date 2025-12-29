@@ -46,19 +46,50 @@ interface ThreadResponse {
 export default function MessagesPage() {
   const [threads, setThreads] = useState<ThreadResponse[]>([])
   const [selectedThread, setSelectedThread] = useState<ThreadResponse | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filter, setFilter] = useState<"all" | "unread">("all")
+  const [adminInfo, setAdminInfo] = useState<{ name: string; email: string; role?: string } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [filter, setFilter] = useState<"all" | "unread">("all")
+  const [searchQuery, setSearchQuery] = useState("")
   const [replyDialogOpen, setReplyDialogOpen] = useState(false)
   const [replyText, setReplyText] = useState("")
-  const [sendingReply, setSendingReply] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [searchResults, setSearchResults] = useState<ThreadResponse[] | null>(null)
   const [threadToDelete, setThreadToDelete] = useState<number | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
-  const [searchResults, setSearchResults] = useState<ThreadResponse[] | null>(null)
-  const [adminInfo, setAdminInfo] = useState<{ name: string; email: string } | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const getAdminDisplayName = (adminName?: string) => {
+    if (!adminName && !adminInfo?.name) return "Admin"
+    const fullName = adminName || adminInfo?.name || "Admin"
+    const firstName = fullName.split(" ")[0]
+    const role = adminInfo?.role || "Admin"
+    return `${firstName} (${role})`
+  }
+
+  useEffect(() => {
+    fetchThreads()
+    fetchAdminInfo()
+  }, [])
+
+  const fetchAdminInfo = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.auth.user, {
+        credentials: "include",
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAdminInfo({
+          name: data.name || "Admin",
+          email: data.email || "",
+          role: data.role || "Admin",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to fetch admin info:", error)
+    }
+  }
 
   const fetchThreads = async () => {
     try {
@@ -115,10 +146,10 @@ export default function MessagesPage() {
     try {
       const filtered = threads.filter(
         (thread) =>
-          thread.originalMessage.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          thread.originalMessage.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          thread.originalMessage.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          thread.originalMessage.message.toLowerCase().includes(searchTerm.toLowerCase()),
+          thread.originalMessage.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          thread.originalMessage.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          thread.originalMessage.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          thread.originalMessage.message.toLowerCase().includes(searchQuery.toLowerCase()),
       )
       setSearchResults(filtered)
     } catch (error) {
@@ -129,41 +160,20 @@ export default function MessagesPage() {
     }
   }
 
-  useEffect(() => {
-    const fetchAdminInfo = async () => {
-      try {
-        const response = await fetch(API_ENDPOINTS.auth.user, {
-          credentials: "include",
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setAdminInfo({ name: data.name, email: data.email })
-        }
-      } catch (error) {
-        console.error("Error fetching admin info:", error)
-      }
-    }
-
-    fetchAdminInfo()
-    fetchThreads()
-  }, [])
-
   const handleSendReply = async () => {
-    if (!selectedThread || !replyText.trim()) return
+    if (!selectedThread || !replyText.trim() || !adminInfo) {
+      alert("Please enter a reply message and ensure you're logged in")
+      return
+    }
 
     if (replyText.trim().length < 10) {
-      alert("Reply must be at least 10 characters long.")
+      alert("Reply must be at least 10 characters long")
       return
     }
 
-    if (!adminInfo) {
-      alert("Admin information not available. Please try again.")
-      return
-    }
-
+    setIsSubmitting(true)
     try {
-      setSendingReply(true)
-      const response = await fetch(API_ENDPOINTS.messages.reply(selectedThread.threadId), {
+      const response = await fetch(API_ENDPOINTS.messages.replyToThread(selectedThread.threadId), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -190,7 +200,7 @@ export default function MessagesPage() {
       console.error("Error sending reply:", error)
       alert("Failed to send reply. Please try again.")
     } finally {
-      setSendingReply(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -315,13 +325,13 @@ export default function MessagesPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search messages..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-8"
                 />
-                {searchTerm && (
+                {searchQuery && (
                   <button
-                    onClick={() => setSearchTerm("")}
+                    onClick={() => setSearchQuery("")}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="h-4 w-4" />
@@ -333,7 +343,7 @@ export default function MessagesPage() {
               </div>
             </div>
 
-            {searchTerm && (
+            {searchQuery && (
               <div className="text-xs text-gray-600 bg-sky-50 px-3 py-2 rounded-lg">
                 {isSearching
                   ? "Searching..."
@@ -372,7 +382,7 @@ export default function MessagesPage() {
                 <div className="text-center py-12">
                   <Mail className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">
-                    {searchTerm ? "No messages match your search" : "No messages found"}
+                    {searchQuery ? "No messages match your search" : "No messages found"}
                   </p>
                 </div>
               ) : (
@@ -404,7 +414,7 @@ export default function MessagesPage() {
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                           {thread.hasUnreadMessages && (
-                            <Badge className="bg-red-500 text-xs px-2 animate-pulse">New</Badge>
+                            <Badge className="bg-red-500 text-white text-xs px-2 animate-pulse">New</Badge>
                           )}
                           {thread.totalMessages > 1 && (
                             <Badge variant="secondary" className="text-xs px-2">
@@ -512,17 +522,21 @@ export default function MessagesPage() {
                   {getAllMessages(selectedThread).map((msg) => (
                     <div
                       key={msg.id}
-                      className={`p-4 rounded-lg ${
+                      className={`p-4 rounded-lg transition-all ${
                         msg.senderType === "ADMIN"
-                          ? "bg-blue-50 border-l-4 border-blue-500 ml-8"
-                          : "bg-gray-50 border-l-4 border-gray-300 mr-8"
+                          ? "bg-gradient-to-r from-blue-50 to-sky-50 border-l-4 border-blue-600 ml-8 shadow-sm"
+                          : "bg-white border border-gray-200 shadow-sm mr-8"
                       }`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
                           {!msg.read && <span className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />}
-                          <span className="font-semibold text-sm">
-                            {msg.senderType === "ADMIN" ? "Admin" : `${msg.firstName} ${msg.lastName}`}
+                          <span
+                            className={`font-semibold text-sm ${msg.senderType === "ADMIN" ? "text-blue-700" : "text-gray-900"}`}
+                          >
+                            {msg.senderType === "ADMIN"
+                              ? getAdminDisplayName(msg.firstName)
+                              : `${msg.firstName} ${msg.lastName}`}
                           </span>
                           <span className="text-xs text-gray-500">
                             {msg.senderType === "CUSTOMER" ? msg.email : ""}
@@ -594,15 +608,15 @@ export default function MessagesPage() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReplyDialogOpen(false)} disabled={sendingReply}>
+            <Button variant="outline" onClick={() => setReplyDialogOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
               onClick={handleSendReply}
-              disabled={!replyText.trim() || sendingReply}
+              disabled={!replyText.trim() || isSubmitting}
               className="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700"
             >
-              {sendingReply ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Sending...
