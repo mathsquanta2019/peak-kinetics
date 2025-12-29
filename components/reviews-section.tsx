@@ -29,7 +29,7 @@ export function ReviewsSection() {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.reviews.list}?page=0&pageSize=20`)
+        const response = await fetch(`${API_ENDPOINTS.reviews.all}?page=0&pageSize=20`)
         if (!response.ok) {
           console.error("[v0] Failed to fetch reviews. Status:", response.status)
           setLoading(false)

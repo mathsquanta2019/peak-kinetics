@@ -2,6 +2,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://loca
 
 export const API_ENDPOINTS = {
   reviews: {
+    all: `${API_BASE_URL}/reviews/all`, // Added 'all' endpoint for public reviews access
     list: `${API_BASE_URL}/reviews`,
     create: `${API_BASE_URL}/reviews`,
     import: `${API_BASE_URL}/reviews/admin/import`,
