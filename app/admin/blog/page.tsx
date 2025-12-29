@@ -9,6 +9,14 @@ import { Plus, Edit2, Trash2, Eye, Calendar, Search, FileText } from "lucide-rea
 import Link from "next/link"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface BlogPost {
   id: string
@@ -28,6 +36,11 @@ export default function AdminBlogPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; postId: string | null; postTitle: string }>({
+    open: false,
+    postId: null,
+    postTitle: "",
+  })
 
   useEffect(() => {
     fetchPosts()
@@ -57,8 +70,6 @@ export default function AdminBlogPage() {
   }
 
   const deletePost = async (postId: string) => {
-    if (!confirm("Are you sure you want to delete this blog post?")) return
-
     try {
       const response = await fetch(API_ENDPOINTS.blog.delete(Number(postId)), {
         method: "DELETE",
@@ -73,6 +84,8 @@ export default function AdminBlogPage() {
       }
     } catch (error) {
       showNotification("error", "An error occurred")
+    } finally {
+      setDeleteDialog({ open: false, postId: null, postTitle: "" })
     }
   }
 
@@ -85,6 +98,26 @@ export default function AdminBlogPage() {
 
   return (
     <div className="space-y-6">
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, postId: null, postTitle: "" })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Blog Post</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteDialog.postTitle}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, postId: null, postTitle: "" })}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => deleteDialog.postId && deletePost(deleteDialog.postId)}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Notification */}
       {notification && (
         <div
@@ -203,7 +236,12 @@ export default function AdminBlogPage() {
                           <Edit2 className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button size="sm" variant="ghost" onClick={() => deletePost(post.id)} title="Delete post">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDeleteDialog({ open: true, postId: post.id, postTitle: post.title })}
+                        title="Delete post"
+                      >
                         <Trash2 className="h-4 w-4 text-red-600 hover:text-red-700" />
                       </Button>
                     </div>
