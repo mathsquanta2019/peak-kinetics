@@ -150,8 +150,9 @@ export default function AdminMessages() {
         credentials: "include",
         body: JSON.stringify({
           parentMessageId: selectedThread.originalMessage.id,
-          email: selectedThread.originalMessage.email,
           message: replyText.trim(),
+          adminName: "Admin", // You can get this from auth context if available
+          adminEmail: "admin@peakkinetics.com", // You can get this from auth context if available
         }),
       })
 
