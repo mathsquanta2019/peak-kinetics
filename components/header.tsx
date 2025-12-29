@@ -52,20 +52,20 @@ export function Header() {
   }, [isMenuOpen])
 
   const navItems = [
-    { href: "#home", label: "Home" },
-    { href: "#services", label: "Services", hasDropdown: true },
-    { href: "#about", label: "About" },
+    { href: "/", label: "Home" },
+    { href: "/#services", label: "Services", hasDropdown: true },
+    { href: "/#about", label: "About" },
     { href: "/blog", label: "Blog" },
-    { href: "#contact", label: "Contact" },
+    { href: "/#contact", label: "Contact" },
   ]
 
   const services = [
-    { name: "Sports Rehabilitation", href: "#services" },
-    { name: "Orthopedic Therapy", href: "#services" },
-    { name: "Pain Management", href: "#services" },
-    { name: "Movement Screening", href: "#services" },
-    { name: "Geriatric Care", href: "#services" },
-    { name: "Wellness Program", href: "#services" },
+    { name: "Sports Rehabilitation", href: "/#services" },
+    { name: "Orthopedic Therapy", href: "/#services" },
+    { name: "Pain Management", href: "/#services" },
+    { name: "Movement Screening", href: "/#services" },
+    { name: "Geriatric Care", href: "/#services" },
+    { name: "Wellness Program", href: "/#services" },
   ]
 
   const handleBookAppointment = () => {
@@ -86,7 +86,9 @@ export function Header() {
           <div className="flex items-center justify-between">
             {/* Logo Section */}
             <div className="flex-shrink-0">
-              <LogoComponent />
+              <Link href="/">
+                <LogoComponent />
+              </Link>
             </div>
 
             {/* Desktop Navigation */}
@@ -99,7 +101,7 @@ export function Header() {
                       onMouseEnter={() => setIsServicesDropdownOpen(true)}
                       onMouseLeave={() => setIsServicesDropdownOpen(false)}
                     >
-                      <a
+                      <Link
                         href={item.href}
                         className="text-foreground hover:text-primary transition-all duration-300 font-semibold text-sm flex items-center gap-1 py-2"
                       >
@@ -111,7 +113,7 @@ export function Header() {
                           )}
                         />
                         <span className="absolute -bottom-1 left-0 w-0 h-1 bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300 group-hover:w-full"></span>
-                      </a>
+                      </Link>
 
                       {/* Services Dropdown */}
                       <div
@@ -126,25 +128,25 @@ export function Header() {
                           <h3 className="font-semibold text-foreground text-sm">Our Services</h3>
                         </div>
                         {services.map((service, index) => (
-                          <a
+                          <Link
                             key={service.name}
                             href={service.href}
                             className="block px-4 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all duration-200 rounded-lg mx-2"
                             style={{ animationDelay: `${index * 50}ms` }}
                           >
                             {service.name}
-                          </a>
+                          </Link>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <a
+                    <Link
                       href={item.href}
                       className="text-foreground hover:text-primary transition-all duration-300 font-semibold text-sm relative py-2"
                     >
                       {item.label}
                       <span className="absolute -bottom-1 left-0 w-0 h-1 bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300 group-hover:w-full"></span>
-                    </a>
+                    </Link>
                   )}
                 </div>
               ))}
@@ -210,8 +212,9 @@ export function Header() {
               <div className="container mx-auto px-6 py-8 h-full overflow-y-auto">
                 <div className="flex flex-col space-y-6 min-h-full justify-center">
                   {navItems.map((item, index) => (
-                    <button
+                    <Link
                       key={item.href}
+                      href={item.href}
                       onClick={() => {
                         setIsMenuOpen(false)
                       }}
@@ -219,7 +222,7 @@ export function Header() {
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       {item.label}
-                    </button>
+                    </Link>
                   ))}
                   <Link
                     href="/admin"
