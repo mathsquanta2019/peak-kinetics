@@ -193,7 +193,7 @@ export default function AdminBlogPage() {
                       })}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Link href={`/blog/${post.slug}`} target="_blank">
+                      <Link href={`/blog/post?id=${post.id}`} target="_blank">
                         <Button size="sm" variant="ghost" title="View post">
                           <Eye className="h-4 w-4" />
                         </Button>

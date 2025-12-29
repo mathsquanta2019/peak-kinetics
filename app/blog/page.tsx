@@ -125,7 +125,7 @@ export default function BlogPage() {
           ) : (
             <div className="space-y-12">
               {filteredPosts.map((post) => (
-                <Link key={post.id} href={`/blog/post?slug=${post.slug}`}>
+                <Link key={post.id} href={`/blog/post?id=${post.id}`}>
                   <article className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-sky-300">
                     <div className="grid md:grid-cols-5 gap-6 p-6 md:p-8">
                       {/* Article Content */}

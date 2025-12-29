@@ -27,26 +27,26 @@ interface BlogPost {
 
 function BlogPostContent() {
   const searchParams = useSearchParams()
-  const slug = searchParams.get("slug")
+  const postId = searchParams.get("id")
   const [post, setPost] = useState<BlogPost | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (slug) {
-      fetchPost(slug)
+    if (postId) {
+      fetchPost(postId)
     } else {
       setError("No blog post specified")
       setLoading(false)
     }
-  }, [slug])
+  }, [postId])
 
-  const fetchPost = async (slug: string) => {
+  const fetchPost = async (postId: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.blog.slug}/${slug}`)
+      const response = await fetch(API_ENDPOINTS.blog.byId(Number(postId)))
       if (response.ok) {
-        const data = await response.json()
-        setPost(data)
+        const result = await response.json()
+        setPost(result.data)
       } else {
         setError("Blog post not found")
       }
