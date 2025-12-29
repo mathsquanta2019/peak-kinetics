@@ -1,17 +1,32 @@
-import BlogPostClient from "./blog-post-client"
+import { API_ENDPOINTS } from "@/lib/api-config"
 
-export async function generateStaticParams() {
-  // In a real application, you would fetch all blog post slugs here
-  // For demonstration purposes, we'll return an empty array
-  return []
+async function fetchBlogSlugs() {
+  const response = await fetch(API_ENDPOINTS.blog.all)
+  if (!response.ok) {
+    throw new Error("Failed to fetch blog posts")
+  }
+  return response.json()
 }
 
-export const dynamicParams = true
+export async function generateStaticParams() {
+  const posts = await fetchBlogSlugs()
+  return posts.map((post: { slug: string }) => ({
+    slug: post.slug,
+  }))
+}
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  // The `slug` parameter in Next.js catch-all routes is an array.
-  // For a single slug, we expect it to be the first element.
-  // If it's an array with multiple elements, you might need to join them or handle differently.
-  const slug = Array.isArray(params.slug) ? params.slug.join("/") : params.slug
-  return <BlogPostClient slug={slug} />
+export default function ServerBlogPostPage({
+  params,
+}: {
+  params: { slug: string }
+}) {
+  // This component will be replaced by the client component
+  // and will only be responsible for generating static params.
+  // The actual content rendering will be handled by the client component.
+  return (
+    <div>
+      {/* This div will be rendered by the client component */}
+      <p>Loading blog post...</p>
+    </div>
+  )
 }
