@@ -43,7 +43,7 @@ interface ThreadResponse {
   hasUnreadMessages: boolean
 }
 
-export default function AdminMessages() {
+export default function MessagesPage() {
   const [threads, setThreads] = useState<ThreadResponse[]>([])
   const [selectedThread, setSelectedThread] = useState<ThreadResponse | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -58,6 +58,7 @@ export default function AdminMessages() {
   const [deleting, setDeleting] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [searchResults, setSearchResults] = useState<ThreadResponse[] | null>(null)
+  const [adminInfo, setAdminInfo] = useState<{ name: string; email: string } | null>(null)
 
   const fetchThreads = async () => {
     try {
@@ -129,6 +130,21 @@ export default function AdminMessages() {
   }
 
   useEffect(() => {
+    const fetchAdminInfo = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.auth.user, {
+          credentials: "include",
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setAdminInfo({ name: data.name, email: data.email })
+        }
+      } catch (error) {
+        console.error("Error fetching admin info:", error)
+      }
+    }
+
+    fetchAdminInfo()
     fetchThreads()
   }, [])
 
@@ -137,6 +153,11 @@ export default function AdminMessages() {
 
     if (replyText.trim().length < 10) {
       alert("Reply must be at least 10 characters long.")
+      return
+    }
+
+    if (!adminInfo) {
+      alert("Admin information not available. Please try again.")
       return
     }
 
@@ -151,8 +172,8 @@ export default function AdminMessages() {
         body: JSON.stringify({
           parentMessageId: selectedThread.originalMessage.id,
           message: replyText.trim(),
-          adminName: "Admin", // You can get this from auth context if available
-          adminEmail: "admin@peakkinetics.com", // You can get this from auth context if available
+          adminName: adminInfo.name,
+          adminEmail: adminInfo.email,
         }),
       })
 
