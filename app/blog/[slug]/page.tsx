@@ -1,30 +1,12 @@
 import { Suspense } from "react"
 import BlogPostClient from "./blog-post-client"
 
-export const dynamicParams = false
+export const dynamicParams = true
 
 export async function generateStaticParams() {
-  try {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api"
-    const response = await fetch(`${API_BASE_URL}/blog?status=published&limit=100`)
-
-    if (!response.ok) {
-      console.log("[v0] Failed to fetch blog posts for static generation, returning empty array")
-      return []
-    }
-
-    const result = await response.json()
-    const posts = result.data || []
-
-    console.log(`[v0] Generating static pages for ${posts.length} blog posts`)
-
-    return posts.map((post: { slug: string }) => ({
-      slug: post.slug,
-    }))
-  } catch (error) {
-    console.error("[v0] Error generating static params for blog posts:", error)
-    return []
-  }
+  // Return empty array - all blog posts will be rendered client-side at runtime
+  // This is necessary because the Spring Boot backend is not running during build
+  return []
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
