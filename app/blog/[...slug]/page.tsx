@@ -1,32 +1,49 @@
-import { API_ENDPOINTS } from "@/lib/api-config"
+import { BlogPostClientPage } from "./page.client"
 
-async function fetchBlogSlugs() {
-  const response = await fetch(API_ENDPOINTS.blog.all)
-  if (!response.ok) {
-    throw new Error("Failed to fetch blog posts")
+interface BlogPost {
+  id: string
+  title: string
+  slug: string
+  excerpt: string
+  featuredImage?: string
+  author: {
+    id: number
+    name: string
   }
-  return response.json()
+  publishedAt: string
+  tags: string[]
+  content: string
 }
 
 export async function generateStaticParams() {
-  const posts = await fetchBlogSlugs()
-  return posts.map((post: { slug: string }) => ({
-    slug: post.slug,
-  }))
+  // In a real application, you would fetch slugs from your CMS or database here
+  // For demonstration, returning an empty array or a few dummy slugs would work.
+  // Example:
+  // const response = await fetch('YOUR_API_ENDPOINT/posts');
+  // const posts: BlogPost[] = await response.json();
+  // return posts.map(post => ({ slug: [post.slug] }));
+
+  return []
 }
 
-export default function ServerBlogPostPage({
-  params,
-}: {
-  params: { slug: string }
-}) {
-  // This component will be replaced by the client component
-  // and will only be responsible for generating static params.
-  // The actual content rendering will be handled by the client component.
-  return (
-    <div>
-      {/* This div will be rendered by the client component */}
-      <p>Loading blog post...</p>
-    </div>
-  )
+export default async function BlogPostServerPage({ params }: { params: { slug: string[] } }) {
+  const slug = params.slug[0]
+  const API_ENDPOINTS = {
+    blog: {
+      slug: `${process.env.NEXT_PUBLIC_API_URL}/api/blog`, // Example API endpoint
+    },
+  }
+
+  let post: BlogPost | null = null
+  try {
+    const response = await fetch(`${API_ENDPOINTS.blog.slug}/${slug}`)
+    if (response.ok) {
+      post = await response.json()
+    }
+  } catch (error) {
+    console.error("Error fetching blog post for static generation:", error)
+  }
+
+  // Pass the fetched post data to the client component
+  return <BlogPostClientPage initialPostData={post} initialSlug={slug} />
 }
