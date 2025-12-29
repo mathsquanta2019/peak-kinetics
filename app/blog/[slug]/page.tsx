@@ -1,6 +1,8 @@
 import { Suspense } from "react"
 import BlogPostClient from "./blog-post-client"
 
+export const dynamicParams = true
+
 export async function generateStaticParams() {
   return []
 }

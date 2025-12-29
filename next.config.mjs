@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  
   trailingSlash: true,
 
   eslint: {
@@ -13,7 +11,7 @@ const nextConfig = {
   },
 
   images: {
-    unoptimized: true, // required for static export
+    unoptimized: true,
   },
 }
 
