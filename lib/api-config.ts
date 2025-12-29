@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   },
   blog: {
     list: `${API_BASE_URL}/blog`,
+    slug: `${API_BASE_URL}/blog/slug`,
     create: (authorId: number) => `${API_BASE_URL}/blog/admin/${authorId}`,
     update: (postId: number) => `${API_BASE_URL}/blog/admin/blog/${postId}`,
     delete: (postId: number) => `${API_BASE_URL}/blog/admin/blog/${postId}`,
