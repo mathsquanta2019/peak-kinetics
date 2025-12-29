@@ -16,7 +16,10 @@ interface BlogPost {
   excerpt: string
   content: string
   featuredImage?: string
-  author: string
+  author: {
+    id: number
+    name: string
+  }
   publishedAt: string
   tags: string[]
 }
@@ -31,13 +34,17 @@ export default function BlogPostClient({ slug }: { slug: string }) {
 
   const fetchPost = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.blog.list}/${slug}`)
+      const response = await fetch(`${API_ENDPOINTS.blog.list}/slug/${slug}`)
+      console.log("[v0] Fetching blog post from:", `${API_ENDPOINTS.blog.list}/slug/${slug}`)
+
       if (response.ok) {
         const result = await response.json()
         console.log("[v0] Blog post API response:", result)
         if (result.success && result.data) {
           setPost(result.data)
         }
+      } else {
+        console.error("[v0] Failed to fetch blog post. Status:", response.status)
       }
     } catch (error) {
       console.error("[v0] Failed to fetch post:", error)
@@ -76,13 +83,19 @@ export default function BlogPostClient({ slug }: { slug: string }) {
       <>
         <Header />
         <main className="min-h-screen pt-24 pb-16 flex flex-col items-center justify-center">
-          <p className="text-gray-500 text-lg mb-6">Article not found</p>
-          <Link href="/blog">
-            <Button className="bg-sky-600 hover:bg-sky-700">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Blog
-            </Button>
-          </Link>
+          <div className="text-center max-w-md mx-auto">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ArrowLeft className="h-10 w-10 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Article Not Found</h2>
+            <p className="text-gray-600 mb-6">The article you're looking for doesn't exist or has been removed.</p>
+            <Link href="/blog">
+              <Button className="bg-sky-600 hover:bg-sky-700">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Blog
+              </Button>
+            </Link>
+          </div>
         </main>
         <Footer />
       </>
@@ -114,7 +127,7 @@ export default function BlogPostClient({ slug }: { slug: string }) {
           <div className="flex items-center gap-6 text-gray-600 pb-8 mb-8 border-b border-gray-200">
             <div className="flex items-center gap-2">
               <User className="h-5 w-5 text-sky-600" />
-              <span className="font-medium">{post.author}</span>
+              <span className="font-medium">{post.author.name}</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-sky-600" />
@@ -128,7 +141,7 @@ export default function BlogPostClient({ slug }: { slug: string }) {
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-sky-600" />
-              <span>5 min read</span>
+              <span>{Math.ceil(post.content.split(" ").length / 200)} min read</span>
             </div>
             <Button variant="outline" size="sm" onClick={handleShare} className="ml-auto bg-transparent">
               <Share2 className="h-4 w-4 mr-2" />
@@ -147,11 +160,15 @@ export default function BlogPostClient({ slug }: { slug: string }) {
           )}
 
           <div className="prose prose-lg prose-sky max-w-none">
-            <div
-              className="text-gray-800 leading-relaxed space-y-6"
-              style={{ whiteSpace: "pre-wrap" }}
-              dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, "<br />") }}
-            />
+            <div className="text-gray-800 leading-relaxed space-y-6 text-lg" style={{ whiteSpace: "pre-wrap" }}>
+              {post.content.split("\n").map((paragraph, index) =>
+                paragraph.trim() ? (
+                  <p key={index} className="mb-4">
+                    {paragraph}
+                  </p>
+                ) : null,
+              )}
+            </div>
           </div>
 
           <div className="mt-16 p-8 bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl border border-sky-100">
